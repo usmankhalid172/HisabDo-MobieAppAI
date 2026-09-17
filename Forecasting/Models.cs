@@ -10,7 +10,37 @@ public sealed record FinancialTransaction(
     Guid TransactionId,
     TransactionType Type,
     decimal Amount,
-    DateTime DateUtc);
+    DateTime DateUtc,
+    string? Category = null);
+
+public sealed record Budget(
+    Guid UserId,
+    string Category,
+    decimal MonthlyLimit);
+
+public sealed record BudgetAnalysisRequest(
+    Guid UserId,
+    DateOnly From,
+    DateOnly To);
+
+public sealed record CategoryBudgetAnalysis(
+    string Category,
+    decimal AverageMonthlySpend,
+    decimal CurrentBudget,
+    decimal UtilizationPercent,
+    decimal RecommendedBudget,
+    bool NeedsAdjustment,
+    string AdjustmentReason);
+
+public sealed record BudgetAnalysisResult(
+    Guid UserId,
+    DateOnly From,
+    DateOnly To,
+    string Status,
+    int MonthsWithData,
+    decimal TotalIncome,
+    decimal TotalExpense,
+    IReadOnlyList<CategoryBudgetAnalysis> Categories);
 
 public sealed record ForecastRequest(
     Guid UserId,

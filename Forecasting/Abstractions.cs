@@ -17,3 +17,9 @@ public interface IForecastingEngine
         int periods,
         CancellationToken cancellationToken);
 }
+
+public interface IBudgetRepository
+{
+    Task<IReadOnlyList<Budget>> GetBudgetsAsync(
+        Guid userId, CancellationToken cancellationToken);
+}

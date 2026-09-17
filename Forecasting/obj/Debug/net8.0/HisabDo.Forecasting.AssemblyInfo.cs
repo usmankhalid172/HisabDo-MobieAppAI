@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("HisabDo.Forecasting")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+91285f3bb35db2d42f7ea7ded9a3f23b1773c25a")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+57144d7cb0437865a98c28bb15acdd8a772c5680")]
 [assembly: System.Reflection.AssemblyProductAttribute("HisabDo.Forecasting")]
 [assembly: System.Reflection.AssemblyTitleAttribute("HisabDo.Forecasting")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

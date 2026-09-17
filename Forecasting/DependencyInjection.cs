@@ -7,6 +7,7 @@ public static class DependencyInjection
     public static IServiceCollection AddHisabDoForecasting(this IServiceCollection services)
     {
         services.AddScoped<ForecastingService>();
+        services.AddScoped<BudgetAnalysisService>();
         return services;
     }
 }

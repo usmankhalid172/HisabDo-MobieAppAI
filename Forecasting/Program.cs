@@ -18,6 +18,7 @@ public static class Program
         builder.Services.AddSwaggerGen();
         builder.Services.AddHisabDoForecasting();
         builder.Services.AddSingleton<IFinancialRepository, DemoFinancialRepository>();
+        builder.Services.AddSingleton<IBudgetRepository, DemoBudgetRepository>();
         builder.Services.AddSingleton<IForecastingEngine, DemoForecastingEngine>();
         builder.Services.AddAuthentication(DemoAuthenticationHandler.Scheme)
             .AddScheme<AuthenticationSchemeOptions, DemoAuthenticationHandler>(

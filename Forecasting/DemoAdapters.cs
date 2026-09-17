@@ -6,15 +6,15 @@ internal sealed class DemoFinancialRepository : IFinancialRepository
     private static readonly IReadOnlyList<FinancialTransaction> Transactions =
     [
         new(UserId, Guid.NewGuid(), TransactionType.Income, 5000m, new DateTime(2026, 1, 10, 0, 0, 0, DateTimeKind.Utc)),
-        new(UserId, Guid.NewGuid(), TransactionType.Expense, 3200m, new DateTime(2026, 1, 18, 0, 0, 0, DateTimeKind.Utc)),
+        new(UserId, Guid.NewGuid(), TransactionType.Expense, 3200m, new DateTime(2026, 1, 18, 0, 0, 0, DateTimeKind.Utc), "Living"),
         new(UserId, Guid.NewGuid(), TransactionType.Income, 5100m, new DateTime(2026, 2, 10, 0, 0, 0, DateTimeKind.Utc)),
-        new(UserId, Guid.NewGuid(), TransactionType.Expense, 3300m, new DateTime(2026, 2, 18, 0, 0, 0, DateTimeKind.Utc)),
+        new(UserId, Guid.NewGuid(), TransactionType.Expense, 3300m, new DateTime(2026, 2, 18, 0, 0, 0, DateTimeKind.Utc), "Living"),
         new(UserId, Guid.NewGuid(), TransactionType.Income, 5200m, new DateTime(2026, 3, 10, 0, 0, 0, DateTimeKind.Utc)),
-        new(UserId, Guid.NewGuid(), TransactionType.Expense, 3100m, new DateTime(2026, 3, 18, 0, 0, 0, DateTimeKind.Utc)),
+        new(UserId, Guid.NewGuid(), TransactionType.Expense, 3100m, new DateTime(2026, 3, 18, 0, 0, 0, DateTimeKind.Utc), "Living"),
         new(UserId, Guid.NewGuid(), TransactionType.Income, 5300m, new DateTime(2026, 4, 10, 0, 0, 0, DateTimeKind.Utc)),
-        new(UserId, Guid.NewGuid(), TransactionType.Expense, 3400m, new DateTime(2026, 4, 18, 0, 0, 0, DateTimeKind.Utc)),
+        new(UserId, Guid.NewGuid(), TransactionType.Expense, 3400m, new DateTime(2026, 4, 18, 0, 0, 0, DateTimeKind.Utc), "Living"),
         new(UserId, Guid.NewGuid(), TransactionType.Income, 5400m, new DateTime(2026, 5, 10, 0, 0, 0, DateTimeKind.Utc)),
-        new(UserId, Guid.NewGuid(), TransactionType.Expense, 3500m, new DateTime(2026, 5, 18, 0, 0, 0, DateTimeKind.Utc))
+        new(UserId, Guid.NewGuid(), TransactionType.Expense, 3500m, new DateTime(2026, 5, 18, 0, 0, 0, DateTimeKind.Utc), "Living")
     ];
 
     public Task<IReadOnlyList<FinancialTransaction>> GetTransactionsAsync(
@@ -49,4 +49,18 @@ internal sealed class DemoForecastingEngine : IForecastingEngine
             .ToList();
         return Task.FromResult(new ForecastEngineResult(result));
     }
+}
+
+internal sealed class DemoBudgetRepository : IBudgetRepository
+{
+    private static readonly Guid UserId = DemoAuthenticationHandler.DemoUserId;
+    private static readonly IReadOnlyList<Budget> Budgets =
+    [
+        new(UserId, "Housing", 1500m),
+        new(UserId, "Food", 700m),
+        new(UserId, "Transport", 400m)
+    ];
+
+    public Task<IReadOnlyList<Budget>> GetBudgetsAsync(Guid userId, CancellationToken cancellationToken)
+        => Task.FromResult<IReadOnlyList<Budget>>(Budgets.Where(x => x.UserId == userId).ToList());
 }
