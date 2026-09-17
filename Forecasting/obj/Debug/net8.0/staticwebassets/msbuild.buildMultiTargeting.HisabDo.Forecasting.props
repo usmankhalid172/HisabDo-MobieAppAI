@@ -1,3 +1,0 @@
-﻿<Project>
-  <Import Project="..\build\HisabDo.Forecasting.props" />
-</Project>
