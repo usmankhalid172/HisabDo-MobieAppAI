@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Spending Intelligence — HisabDo AI</title>
+<style>
+  :root{
+    --ink:#22261f;
+    --paper:#f6f1e4;
+    --paper-line:#ded4b8;
+    --ledger-green:#2f5d4f;
+    --ledger-green-deep:#1d3c33;
+    --rise:#8a3324;
+    --fall:#3d6b4a;
+    --muted:#6f6a58;
+    --card:#fffdf6;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--paper);
+    color:var(--ink);
+    font-family:"Iowan Old Style","Palatino Linotype",Georgia,serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  .sans{ font-family:"Helvetica Neue",Arial,sans-serif; }
+
+  .page{ max-width:920px; margin:0 auto; padding:40px 24px 80px; }
+
+  .masthead{
+    display:flex; justify-content:space-between; align-items:baseline;
+    border-bottom:2px solid var(--ink); padding-bottom:14px; margin-bottom:28px;
+  }
+  .masthead h1{ font-size:22px; letter-spacing:0.02em; margin:0; font-weight:600; }
+  .masthead .period{ font-family:"Helvetica Neue",Arial,sans-serif; font-size:13px; color:var(--muted); }
+
+  .hero{
+    display:flex; justify-content:space-between; align-items:flex-end; flex-wrap:wrap; gap:20px;
+    padding:28px 0 32px; border-bottom:1px dashed var(--paper-line); margin-bottom:32px;
+  }
+  .hero-figure .label{
+    font-family:"Helvetica Neue",Arial,sans-serif; font-size:13px; text-transform:uppercase;
+    letter-spacing:0.08em; color:var(--muted); margin-bottom:6px;
+  }
+  .hero-figure .amount{ font-size:56px; line-height:1; font-weight:600; font-variant-numeric:tabular-nums; }
+  .hero-compare{ font-family:"Helvetica Neue",Arial,sans-serif; text-align:right; font-size:14px; }
+  .hero-compare .delta{ font-size:20px; font-weight:700; }
+  .delta.up{ color:var(--rise); }
+  .delta.down{ color:var(--fall); }
+  .delta.flat{ color:var(--muted); }
+
+  section{ margin-bottom:40px; }
+  .section-title{
+    font-family:"Helvetica Neue",Arial,sans-serif; font-size:13px; text-transform:uppercase;
+    letter-spacing:0.08em; color:var(--muted); border-bottom:1px solid var(--paper-line);
+    padding-bottom:8px; margin-bottom:18px; display:flex; justify-content:space-between;
+  }
+
+  .cat-row{
+    display:grid; grid-template-columns:130px 1fr 90px; align-items:center; gap:14px;
+    padding:10px 0; border-bottom:1px solid var(--paper-line); font-family:"Helvetica Neue",Arial,sans-serif;
+  }
+  .cat-row:last-child{ border-bottom:none; }
+  .cat-name{ font-size:14px; }
+  .cat-bar-track{ height:10px; background:#ece4cf; border-radius:2px; overflow:hidden; }
+  .cat-bar-fill{ height:100%; background:var(--ledger-green); border-radius:2px; }
+  .cat-amount{ text-align:right; font-size:13px; font-variant-numeric:tabular-nums; color:var(--muted); }
+  .cat-amount b{ color:var(--ink); font-weight:600; display:block; font-size:14px;}
+
+  .trend-wrap{ background:var(--card); border:1px solid var(--paper-line); padding:18px; }
+  #trendCanvas{ width:100%; height:180px; display:block; }
+  .trend-note{ font-family:"Helvetica Neue",Arial,sans-serif; font-size:12px; color:var(--muted); margin-top:10px; }
+
+  .callouts{ display:grid; grid-template-columns:1fr 1fr; gap:20px; }
+  .callout{ padding:16px 18px; border-left:3px solid var(--paper-line); font-family:"Helvetica Neue",Arial,sans-serif; }
+  .callout.rise{ border-left-color:var(--rise); }
+  .callout.fall{ border-left-color:var(--fall); }
+  .callout .tag{ font-size:12px; text-transform:uppercase; letter-spacing:0.06em; color:var(--muted); }
+  .callout .cat{ font-size:20px; font-weight:600; margin:4px 0; }
+  .callout .amt{ font-size:13px; color:var(--muted); }
+  .callout.rise .amt b{ color:var(--rise); }
+  .callout.fall .amt b{ color:var(--fall); }
+  .new-tags{ font-family:"Helvetica Neue",Arial,sans-serif; font-size:12px; color:var(--muted); margin-top:10px; }
+  .new-tags span{ background:#e3ecdf; padding:2px 8px; border-radius:10px; margin-right:6px; display:inline-block; margin-bottom:4px;}
+
+  @media (max-width:640px){
+    .callouts{ grid-template-columns:1fr; }
+    .cat-row{ grid-template-columns:100px 1fr 70px; }
+    .hero-figure .amount{ font-size:40px; }
+  }
+
+  .unavailable-box{
+    border:1px dashed var(--paper-line); padding:18px 20px; font-family:"Helvetica Neue",Arial,sans-serif;
+  }
+  .unavailable-box .head{ font-weight:700; font-size:14px; margin-bottom:6px; }
+  .unavailable-box p{ font-size:13px; color:var(--muted); margin:0; line-height:1.5; }
+
+  .insight-box{
+    background:var(--ledger-green-deep); color:#f3f1e6; padding:20px 22px; font-size:15px; line-height:1.55;
+  }
+  .insight-box .tag{
+    font-family:"Helvetica Neue",Arial,sans-serif; font-size:11px; text-transform:uppercase;
+    letter-spacing:0.08em; opacity:0.7; margin-bottom:8px;
+  }
+  .insight-fallback-note{ font-family:"Helvetica Neue",Arial,sans-serif; font-size:11px; color:var(--muted); margin-top:8px; }
+
+  .empty-state{ text-align:center; padding:64px 20px; border:1px dashed var(--paper-line); }
+  .empty-state h2{ font-size:20px; margin-bottom:8px; }
+  .empty-state p{ font-family:"Helvetica Neue",Arial,sans-serif; color:var(--muted); font-size:14px; max-width:360px; margin:0 auto; }
+
+  .dev-toggle{ font-family:"Helvetica Neue",Arial,sans-serif; font-size:12px; text-align:center; margin-bottom:20px; }
+  .dev-toggle button{
+    font-family:inherit; font-size:12px; padding:6px 12px; margin:0 4px;
+    border:1px solid var(--ink); background:var(--card); cursor:pointer;
+  }
+  .dev-toggle button.active{ background:var(--ink); color:var(--paper); }
+
+  .banner{
+    background:#fdf3e3; border:1px solid #e3cf9c; padding:10px 14px; font-family:"Helvetica Neue",Arial,sans-serif;
+    font-size:12px; color:#6b5124; margin-bottom:20px;
+  }
+</style>
+</head>
+<body>
+
+<div class="page">
+
+  <div class="dev-toggle sans">
+    <button id="btnNormal" class="active">Sample data (matches real API shape)</button>
+    <button id="btnEmpty">Empty state</button>
+  </div>
+
+  <div class="banner">
+    Wired to the real backend contract: <code>GET /api/v1/spending-pattern-intelligence/&#123;user_id&#125;</code>
+    (branch <code>feature/spending-pattern-intelligence</code>, not yet merged to main). Sample data below mirrors
+    that exact response shape — swap in a real <code>fetch()</code> call using <code>spending_intelligence_client.js</code>
+    once the branch is merged and reachable.
+  </div>
+
+  <div class="masthead">
+    <h1>Spending Intelligence</h1>
+    <div class="period" id="periodLabel">—</div>
+  </div>
+
+  <div id="app"></div>
+
+</div>
+
+<script>
+// ---------------------------------------------------------------------
+// Inline copy of the display-building logic from spending_intelligence_client.js
+// so this file previews standalone. In the real app, import from that file
+// instead of duplicating this.
+// ---------------------------------------------------------------------
+function rankTopCategories(categoryBreakdown, categoryPercentages, limit) {
+  limit = limit || 5;
+  return Object.entries(categoryBreakdown || {})
+    .map(([category, amount]) => ({ category, amount, percentage: (categoryPercentages || {})[category] ?? null }))
+    .sort((a, b) => b.amount - a.amount)
+    .slice(0, limit);
+}
+
+function computeCategoryMovers(currentBreakdown, previousBreakdown) {
+  currentBreakdown = currentBreakdown || {}; previousBreakdown = previousBreakdown || {};
+  const allCategories = new Set([...Object.keys(currentBreakdown), ...Object.keys(previousBreakdown)]);
+  const deltas = []; const newCategories = []; const stoppedCategories = [];
+  for (const category of allCategories) {
+    const current = currentBreakdown[category] ?? 0;
+    const previous = previousBreakdown[category] ?? 0;
+    const changeAmount = current - previous;
+    if (previous === 0 && current > 0) newCategories.push(category);
+    if (previous > 0 && current === 0) stoppedCategories.push(category);
+    deltas.push({ category, changeAmount, changePercent: previous > 0 ? Math.round((changeAmount/previous)*10000)/100 : null });
+  }
+  deltas.sort((a,b) => b.changeAmount - a.changeAmount);
+  const largestIncreasingCategory = deltas.length && deltas[0].changeAmount > 0 ? deltas[0] : null;
+  const largestDecreasingCategory = deltas.length && deltas[deltas.length-1].changeAmount < 0 ? deltas[deltas.length-1] : null;
+  return { largestIncreasingCategory, largestDecreasingCategory, newCategories, stoppedCategories };
+}
+
+function getRecurringStatus() {
+  return {
+    available: false,
+    reason: "The current API only returns category totals, not individual transactions, so a repeating expense can't be detected. Needs a transaction-level endpoint or the raw transaction list."
+  };
+}
+
+function buildFallbackInsight({ growthPercent, topCategories, movers }) {
+  const lines = [];
+  if (growthPercent === null || growthPercent === undefined) {
+    lines.push("This is the first period with comparable data, so there's no trend yet.");
+  } else if (growthPercent > 10) {
+    lines.push(`Spending increased ${growthPercent}% compared with the previous period.`);
+  } else if (growthPercent < -10) {
+    lines.push(`Spending decreased ${Math.abs(growthPercent)}% compared with the previous period.`);
+  } else {
+    lines.push("Spending is roughly stable compared with the previous period.");
+  }
+  if (topCategories.length) {
+    const top = topCategories[0];
+    lines.push(top.percentage != null
+      ? `${top.category} is the largest category at ${top.percentage}% of total spending.`
+      : `${top.category} is the largest category.`);
+  }
+  if (movers.largestIncreasingCategory) {
+    lines.push(`${movers.largestIncreasingCategory.category} increased the most, by Rs ${Math.round(movers.largestIncreasingCategory.changeAmount).toLocaleString()}.`);
+  }
+  if (movers.largestDecreasingCategory) {
+    lines.push(`${movers.largestDecreasingCategory.category} decreased the most, by Rs ${Math.round(Math.abs(movers.largestDecreasingCategory.changeAmount)).toLocaleString()}.`);
+  }
+  if (movers.newCategories.length) {
+    lines.push(`New spending category this period: ${movers.newCategories.join(", ")}.`);
+  }
+  return lines.join(" ");
+}
+
+function buildDisplayPayload(currentResponse, previousResponse) {
+  const totalExpenses = currentResponse.total_expenses ?? 0;
+  const previousTotalExpenses = previousResponse?.total_expenses ?? 0;
+  const hasSpending = (currentResponse.period_summary?.has_transactions ?? totalExpenses > 0) && totalExpenses > 0;
+
+  const growthPercent = (previousResponse && previousTotalExpenses > 0)
+    ? Math.round(((totalExpenses - previousTotalExpenses) / previousTotalExpenses) * 10000) / 100
+    : null;
+
+  const topCategories = rankTopCategories(currentResponse.category_breakdown, currentResponse.category_percentages);
+  const movers = previousResponse
+    ? computeCategoryMovers(currentResponse.category_breakdown, previousResponse.category_breakdown)
+    : { largestIncreasingCategory:null, largestDecreasingCategory:null, newCategories:[], stoppedCategories:[] };
+  const recurring = getRecurringStatus();
+  const insight = buildFallbackInsight({ totalExpenses, growthPercent, topCategories, movers });
+
+  return {
+    period: currentResponse.analysis_period,
+    totalSpending: { amount: totalExpenses, display: hasSpending ? `Rs ${Math.round(totalExpenses).toLocaleString()}` : "No spending recorded" },
+    periodComparison: {
+      current: totalExpenses, previous: previousTotalExpenses, growthPercent,
+      trendLabel: growthPercent == null ? "No prior data" : growthPercent > 0 ? "Up" : growthPercent < 0 ? "Down" : "Unchanged",
+    },
+    topCategories,
+    largestIncreasingCategory: movers.largestIncreasingCategory,
+    largestDecreasingCategory: movers.largestDecreasingCategory,
+    newCategories: movers.newCategories,
+    monthlyTrend: currentResponse.monthly_comparison || [],
+    recurring,
+    aiInsight: insight,
+    isEmpty: !hasSpending,
+  };
+}
+
+// ---------------------------------------------------------------------
+// Sample data — shaped EXACTLY like the real backend's actual response
+// (field names copied from spending_pattern_intelligence.py)
+// ---------------------------------------------------------------------
+const CURRENT_PERIOD = {
+  user_id: "U4637",
+  analysis_period: { start_date: "2026-09-01", end_date: "2026-09-30" },
+  income_total: 150000.00,
+  total_expenses: 108500.00,
+  category_breakdown: {
+    "Groceries": 32000.00, "Transport": 18500.00, "Bills": 15000.00,
+    "Utilities": 12500.00, "Entertainment": 6000.00, "Other": 24500.00
+  },
+  category_percentages: {
+    "Groceries": 29.49, "Transport": 17.05, "Bills": 13.82,
+    "Utilities": 11.52, "Entertainment": 5.53, "Other": 22.58
+  },
+  period_summary: { transaction_count: 46, income_transaction_count: 2, expense_transaction_count: 44, has_transactions: true },
+  monthly_comparison: [
+    { month: "2026-04", income: 145000, expenses: 78000, transaction_count: 38 },
+    { month: "2026-05", income: 148000, expenses: 85000, transaction_count: 41 },
+    { month: "2026-06", income: 150000, expenses: 91000, transaction_count: 40 },
+    { month: "2026-07", income: 150000, expenses: 88000, transaction_count: 39 },
+    { month: "2026-08", income: 150000, expenses: 96000, transaction_count: 43 },
+    { month: "2026-09", income: 150000, expenses: 108500, transaction_count: 46 },
+  ],
+  verified: true, source: "verified_hisabdo_transaction_ledger",
+};
+
+const PREVIOUS_PERIOD = {
+  user_id: "U4637",
+  analysis_period: { start_date: "2026-08-01", end_date: "2026-08-31" },
+  income_total: 150000.00,
+  total_expenses: 96000.00,
+  category_breakdown: {
+    "Groceries": 27000.00, "Transport": 17000.00, "Bills": 14500.00,
+    "Utilities": 11500.00, "Entertainment": 8200.00, "Other": 17800.00
+  },
+  category_percentages: {
+    "Groceries": 28.13, "Transport": 17.71, "Bills": 15.10,
+    "Utilities": 11.98, "Entertainment": 8.54, "Other": 18.54
+  },
+  period_summary: { transaction_count: 43, income_transaction_count: 2, expense_transaction_count: 41, has_transactions: true },
+  verified: true, source: "verified_hisabdo_transaction_ledger",
+};
+
+const EMPTY_RESPONSE = {
+  user_id: "U0000",
+  analysis_period: { start_date: "2026-09-01", end_date: "2026-09-30" },
+  income_total: 0, total_expenses: 0,
+  category_breakdown: {}, category_percentages: {},
+  period_summary: { transaction_count: 0, income_transaction_count: 0, expense_transaction_count: 0, has_transactions: false },
+  monthly_comparison: [],
+  verified: true, source: "verified_hisabdo_transaction_ledger",
+};
+
+function fmt(n){ return "Rs " + Math.round(n).toLocaleString(); }
+
+function render(current, previous) {
+  const data = buildDisplayPayload(current, previous);
+  document.getElementById("periodLabel").textContent = `${current.analysis_period.start_date} – ${current.analysis_period.end_date}`;
+
+  const app = document.getElementById("app");
+
+  if (data.isEmpty) {
+    app.innerHTML = `
+      <div class="empty-state">
+        <h2>No spending recorded yet</h2>
+        <p class="sans">Once transactions come in for this period, you'll see your top categories, trends and spending insights here.</p>
+      </div>`;
+    return;
+  }
+
+  const maxCat = Math.max(...data.topCategories.map(c => c.amount));
+  const catRows = data.topCategories.map(c => `
+    <div class="cat-row">
+      <div class="cat-name">${c.category}</div>
+      <div class="cat-bar-track"><div class="cat-bar-fill" style="width:${(c.amount/maxCat*100).toFixed(1)}%"></div></div>
+      <div class="cat-amount"><b>${c.percentage != null ? c.percentage + '%' : ''}</b>${fmt(c.amount)}</div>
+    </div>`).join("");
+
+  const growth = data.periodComparison.growthPercent;
+  const deltaClass = growth == null ? "flat" : growth > 0 ? "up" : growth < 0 ? "down" : "flat";
+  const deltaText = growth == null ? "No prior period" : `${growth > 0 ? "▲" : growth < 0 ? "▼" : "—"} ${Math.abs(growth)}%`;
+
+  const callouts = `
+    <div class="callouts">
+      ${data.largestIncreasingCategory ? `
+      <div class="callout rise">
+        <div class="tag">Increased the most</div>
+        <div class="cat">${data.largestIncreasingCategory.category}</div>
+        <div class="amt">up <b>${fmt(data.largestIncreasingCategory.changeAmount)}</b>${data.largestIncreasingCategory.changePercent != null ? ` (${data.largestIncreasingCategory.changePercent}%)` : ''}</div>
+      </div>` : `<div class="callout"><div class="tag">Increased the most</div><div class="cat">—</div></div>`}
+      ${data.largestDecreasingCategory ? `
+      <div class="callout fall">
+        <div class="tag">Decreased the most</div>
+        <div class="cat">${data.largestDecreasingCategory.category}</div>
+        <div class="amt">down <b>${fmt(Math.abs(data.largestDecreasingCategory.changeAmount))}</b>${data.largestDecreasingCategory.changePercent != null ? ` (${data.largestDecreasingCategory.changePercent}%)` : ''}</div>
+      </div>` : `<div class="callout"><div class="tag">Decreased the most</div><div class="cat">—</div></div>`}
+    </div>
+    ${data.newCategories.length ? `<div class="new-tags">New this period: ${data.newCategories.map(c=>`<span>${c}</span>`).join("")}</div>` : ""}
+  `;
+
+  app.innerHTML = `
+    <div class="hero">
+      <div class="hero-figure">
+        <div class="label">Total Spending</div>
+        <div class="amount">${fmt(data.totalSpending.amount)}</div>
+      </div>
+      <div class="hero-compare">
+        <div>vs previous period (${fmt(data.periodComparison.previous)})</div>
+        <div class="delta ${deltaClass}">${deltaText}</div>
+      </div>
+    </div>
+
+    <section>
+      <div class="section-title"><span>Top Spending Categories</span><span>% of total</span></div>
+      ${catRows}
+    </section>
+
+    <section>
+      <div class="section-title"><span>Monthly Spending Trend</span><span>from monthly_comparison (real)</span></div>
+      <div class="trend-wrap">
+        <canvas id="trendCanvas" width="860" height="180"></canvas>
+        <div class="trend-note sans">Comes directly from the API's real monthly_comparison field — no workaround needed for this one.</div>
+      </div>
+    </section>
+
+    <section>
+      <div class="section-title"><span>Biggest Movers</span><span class="sans" style="text-transform:none;">vs previous period</span></div>
+      ${callouts}
+    </section>
+
+    <section>
+      <div class="section-title"><span>Recurring Spending</span></div>
+      <div class="unavailable-box">
+        <div class="head">Not available yet</div>
+        <p>${data.recurring.reason}</p>
+      </div>
+    </section>
+
+    <section>
+      <div class="section-title"><span>AI Spending Insight</span></div>
+      <div class="insight-box">
+        <div class="tag">Generated from verified numbers above</div>
+        ${data.aiInsight}
+      </div>
+      <div class="insight-fallback-note sans">⚠ Rule-based fallback — no aiInsight field exists in the real API yet.</div>
+    </section>
+  `;
+
+  if (data.monthlyTrend && data.monthlyTrend.length) {
+    drawTrend(data.monthlyTrend.map(m => ({ month: m.month.slice(5), total: m.expenses })));
+  }
+}
+
+function drawTrend(points) {
+  const canvas = document.getElementById("trendCanvas");
+  const ctx = canvas.getContext("2d");
+  const w = canvas.width, h = canvas.height, pad = 30;
+  ctx.clearRect(0,0,w,h);
+  const max = Math.max(...points.map(p => p.total)) * 1.15;
+  const stepX = (w - pad*2) / (points.length - 1 || 1);
+
+  ctx.strokeStyle = "#e3d9bd"; ctx.lineWidth = 1;
+  for (let i=0;i<=3;i++){ const y = pad + (h-pad*2)/3*i; ctx.beginPath(); ctx.moveTo(pad,y); ctx.lineTo(w-pad,y); ctx.stroke(); }
+
+  ctx.strokeStyle = "#2f5d4f"; ctx.lineWidth = 2.5; ctx.beginPath();
+  points.forEach((p,i)=>{ const x = pad + stepX*i; const y = h - pad - (p.total/max)*(h-pad*2); if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y); });
+  ctx.stroke();
+
+  ctx.fillStyle = "#2f5d4f"; ctx.font = "11px Helvetica, Arial, sans-serif"; ctx.textAlign = "center";
+  points.forEach((p,i)=>{
+    const x = pad + stepX*i; const y = h - pad - (p.total/max)*(h-pad*2);
+    ctx.beginPath(); ctx.arc(x,y,3,0,Math.PI*2); ctx.fill();
+    ctx.fillStyle = "#6f6a58"; ctx.fillText(p.month, x, h-8); ctx.fillStyle = "#2f5d4f";
+  });
+}
+
+document.getElementById("btnNormal").onclick = () => {
+  render(CURRENT_PERIOD, PREVIOUS_PERIOD);
+  document.getElementById("btnNormal").classList.add("active");
+  document.getElementById("btnEmpty").classList.remove("active");
+};
+document.getElementById("btnEmpty").onclick = () => {
+  render(EMPTY_RESPONSE, null);
+  document.getElementById("btnEmpty").classList.add("active");
+  document.getElementById("btnNormal").classList.remove("active");
+};
+
+render(CURRENT_PERIOD, PREVIOUS_PERIOD);
+</script>
+
+</body>
+</html>
