@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Anomaly Alerts — HisabDo AI</title>
+<style>
+  :root{
+    --ink:#22261f;
+    --paper:#f6f1e4;
+    --paper-line:#ded4b8;
+    --muted:#6f6a58;
+    --card:#fffdf6;
+    --high:#8a3324;
+    --high-bg:#f7e4dd;
+    --medium:#8a6a1f;
+    --medium-bg:#f7edd6;
+    --low:#4a5a3d;
+    --low-bg:#e8ede0;
+    --ledger-green:#2f5d4f;
+  }
+  *{ box-sizing:border-box; }
+  body{
+    margin:0; background:var(--paper); color:var(--ink);
+    font-family:"Iowan Old Style","Palatino Linotype",Georgia,serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  .sans{ font-family:"Helvetica Neue",Arial,sans-serif; }
+  .page{ max-width:840px; margin:0 auto; padding:36px 22px 80px; }
+
+  .dev-toggle{ font-family:"Helvetica Neue",Arial,sans-serif; font-size:12px; text-align:center; margin-bottom:18px; }
+  .dev-toggle button{
+    font-family:inherit; font-size:11.5px; padding:6px 11px; margin:3px;
+    border:1px solid var(--ink); background:var(--card); cursor:pointer;
+  }
+  .dev-toggle button.active{ background:var(--ink); color:var(--paper); }
+
+  .masthead{
+    display:flex; justify-content:space-between; align-items:baseline; gap:12px; flex-wrap:wrap;
+    border-bottom:2px solid var(--ink); padding-bottom:13px; margin-bottom:18px;
+  }
+  .masthead h1{ font-size:22px; margin:0; font-weight:600; letter-spacing:0.02em; }
+  .masthead .period{ font-family:"Helvetica Neue",Arial,sans-serif; font-size:13px; color:var(--muted); }
+
+  .notice{
+    font-family:"Helvetica Neue",Arial,sans-serif; font-size:12.5px; line-height:1.5;
+    padding:11px 14px; margin-bottom:18px; border:1px solid var(--paper-line); background:var(--card); color:var(--muted);
+  }
+  .notice.warn{ background:#fdf3e3; border-color:#e3cf9c; color:#6b5124; }
+
+  .summary-row{ display:flex; gap:12px; margin-bottom:24px; font-family:"Helvetica Neue",Arial,sans-serif; }
+  .summary-chip{ flex:1; padding:12px 10px; border:1px solid var(--paper-line); background:var(--card); text-align:center; }
+  .summary-chip .n{ font-size:25px; font-weight:700; font-variant-numeric:tabular-nums; line-height:1; }
+  .summary-chip .l{ font-size:10.5px; text-transform:uppercase; letter-spacing:0.07em; color:var(--muted); margin-top:5px; }
+  .summary-chip.high .n{ color:var(--high); }
+  .summary-chip.medium .n{ color:var(--medium); }
+  .summary-chip.low .n{ color:var(--low); }
+
+  .alert-card{
+    display:grid; grid-template-columns:6px 1fr; margin-bottom:13px;
+    background:var(--card); border:1px solid var(--paper-line); overflow:hidden;
+  }
+  .alert-card .stripe{ background:var(--paper-line); }
+  .alert-card.high .stripe{ background:var(--high); }
+  .alert-card.medium .stripe{ background:var(--medium); }
+  .alert-card.low .stripe{ background:var(--low); }
+
+  .alert-body{ padding:15px 19px; }
+  .alert-top{ display:flex; justify-content:space-between; align-items:flex-start; gap:12px; margin-bottom:9px; }
+  .alert-type{ font-size:17px; font-weight:600; line-height:1.25; }
+  .badges{ display:flex; gap:6px; flex-wrap:wrap; justify-content:flex-end; }
+  .badge{
+    font-family:"Helvetica Neue",Arial,sans-serif; font-size:10.5px; font-weight:700;
+    text-transform:uppercase; letter-spacing:0.05em; padding:3px 9px; border-radius:10px; white-space:nowrap;
+  }
+  .badge.high{ background:var(--high-bg); color:var(--high); }
+  .badge.medium{ background:var(--medium-bg); color:var(--medium); }
+  .badge.low{ background:var(--low-bg); color:var(--low); }
+  .badge.unknown{ background:#eee8d8; color:var(--muted); }
+  .badge.candidate{ background:#e7eaf2; color:#3c4a6b; }
+
+  .alert-meta{
+    display:flex; flex-wrap:wrap; gap:7px 18px; font-family:"Helvetica Neue",Arial,sans-serif;
+    font-size:13px; color:var(--muted); margin-bottom:11px;
+  }
+  .alert-meta b{ color:var(--ink); font-weight:600; }
+  .alert-meta .vs{ opacity:0.75; }
+
+  .alert-reason{
+    font-family:"Helvetica Neue",Arial,sans-serif; font-size:13.5px; line-height:1.55;
+    border-top:1px dashed var(--paper-line); padding-top:10px;
+  }
+  .alert-reason .tag{
+    font-size:10px; text-transform:uppercase; letter-spacing:0.07em; color:var(--muted);
+    display:block; margin-bottom:4px;
+  }
+  .alert-action{
+    font-family:"Helvetica Neue",Arial,sans-serif; font-size:12.5px; color:var(--muted);
+    margin-top:9px; padding-top:9px; border-top:1px solid var(--paper-line);
+  }
+  .reason-src{
+    font-family:"Helvetica Neue",Arial,sans-serif; font-size:10.5px; color:var(--muted);
+    opacity:0.8; margin-top:5px;
+  }
+
+  .state-box{ text-align:center; padding:58px 22px; border:1px dashed var(--paper-line); background:var(--card); }
+  .state-box .icon{ font-size:30px; margin-bottom:10px; line-height:1; }
+  .state-box h2{ font-size:20px; margin:0 0 8px; }
+  .state-box p{
+    font-family:"Helvetica Neue",Arial,sans-serif; color:var(--muted);
+    font-size:14px; line-height:1.55; max-width:400px; margin:0 auto;
+  }
+
+  @media (max-width:560px){
+    .summary-row{ flex-wrap:wrap; }
+    .alert-top{ flex-direction:column; align-items:stretch; }
+    .badges{ justify-content:flex-start; }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <div class="dev-toggle sans">
+    <button data-state="normal" class="active">Mixed alerts</button>
+    <button data-state="empty">No anomalies</button>
+    <button data-state="insufficient">Insufficient baseline</button>
+    <button data-state="duplicate">Duplicate only</button>
+    <button data-state="error">Error state</button>
+  </div>
+
+  <div class="notice sans">
+    Built to the Day 12 spec contract:
+    <code>GET /api/ai/anomalies/&#123;userId&#125;?startDate=&amp;endDate=</code>
+    (<code>Anomaly_Detection/</code> §11). Sample payloads below mirror that exact shape.
+    Swap in a real <code>fetch()</code> via <code>anomaly_alert_client.js</code> once the backend is deployed.
+  </div>
+
+  <div class="masthead">
+    <h1>Spending Alerts</h1>
+    <div class="period" id="periodLabel">—</div>
+  </div>
+
+  <div id="app"></div>
+</div>
+
+<script>
+/* ------------------------------------------------------------------
+   Inline copy of the display logic from anomaly_alert_client.js so this
+   file previews standalone. In the real app, import from that module
+   instead of duplicating it.
+------------------------------------------------------------------- */
+const TYPE_LABELS = {
+  unusualamount:"Unusual Amount", suddenspendingspike:"Sudden Spending Spike",
+  spendingspike:"Sudden Spending Spike", unusualcategory:"Unusual Category",
+  duplicatetransaction:"Duplicate Transaction", newcategory:"New Category",
+};
+function normalizeType(t){
+  if(!t) return "Spending Anomaly";
+  return TYPE_LABELS[String(t).toLowerCase().replace(/[\s_-]/g,"")] || String(t);
+}
+function normalizeSeverity(s){
+  const v = String(s||"").toLowerCase();
+  return ["high","medium","low"].includes(v) ? v : "unknown";
+}
+function severityRank(s){ return {high:0,medium:1,low:2,unknown:3}[s] ?? 3; }
+
+const REASON_CODE_TEXT = {
+  AMOUNT_ABOVE_BASELINE:"This amount is above the usual range for this category, based on past spending.",
+  CATEGORY_ABOVE_BASELINE:"Spending in this category is above its usual level, based on past periods.",
+  PERIOD_SPIKE:"Total spending in this category rose compared with the usual level for a comparable period.",
+  DUPLICATE_CANDIDATE:"Another transaction with matching details was recorded on the same day.",
+  NEW_CATEGORY:"This category has no past spending to compare against yet.",
+  INSUFFICIENT_BASELINE:"There isn't enough spending history yet to compare this against.",
+};
+
+function resolveReason(a){
+  const ex = a.explanation || a.aiExplanation;
+  if(ex){
+    const parts = [ex.whatHappened, ex.whyFlagged].filter(Boolean);
+    if(parts.length) return { text: parts.join(" "), source:"ai_explanation" };
+  }
+  if(a.reason || a.detectionReason) return { text: a.reason || a.detectionReason, source:"backend" };
+  if(a.reasonCode && REASON_CODE_TEXT[a.reasonCode]) return { text: REASON_CODE_TEXT[a.reasonCode], source:"reason_code" };
+  return { text:"This transaction differs from the usual spending pattern.", source:"fallback" };
+}
+
+function formatAmount(v){ return (v==null||isNaN(v)) ? null : "Rs " + Math.round(Number(v)).toLocaleString(); }
+function formatDate(v){
+  if(!v) return "Date not recorded";
+  const d = new Date(v);
+  return isNaN(d.getTime()) ? String(v) : d.toLocaleDateString(undefined,{year:"numeric",month:"short",day:"numeric"});
+}
+function formatPercent(v){
+  if(v==null||isNaN(v)) return null;
+  const n = Number(v);
+  return (n>0?"+":"") + n.toFixed(2) + "%";
+}
+
+function buildDisplayPayload(api){
+  const rawAnomalies = api.anomalies || [];
+  const rawSpikes = api.periodSpikes || [];
+  const baselinePeriods = api.baselinePeriods;
+  const isInsufficientBaseline = api.insufficientBaseline === true ||
+    (typeof baselinePeriods === "number" && baselinePeriods < 3);
+
+  const anomalyItems = rawAnomalies.map(a => {
+    const reason = resolveReason(a);
+    const isDup = a.isDuplicateCandidate === true || normalizeType(a.type) === "Duplicate Transaction";
+    return {
+      origin:"anomaly", transactionId:a.transactionId ?? null,
+      type:normalizeType(a.type), severity:normalizeSeverity(a.severity),
+      amountDisplay:formatAmount(a.amount),
+      category:a.category || "Uncategorized",
+      dateDisplay:formatDate(a.date), date:a.date ?? null,
+      baselineDisplay:formatAmount(a.baselineValue),
+      deviationDisplay:formatPercent(a.deviationPercent),
+      reasonCode:a.reasonCode ?? null, reason:reason.text, reasonSource:reason.source,
+      isDuplicateCandidate:isDup,
+      suggestedAction: isDup
+        ? "Review both transactions and confirm whether both should stay."
+        : "Review this transaction and confirm whether the spending was expected.",
+    };
+  });
+
+  const spikeItems = rawSpikes.map(s => ({
+    origin:"periodSpike", transactionId:null,
+    type:"Sudden Spending Spike", severity:normalizeSeverity(s.severity),
+    amountDisplay:formatAmount(s.currentAmount),
+    category:s.category || "Uncategorized",
+    dateDisplay: api.analysisPeriod ? `${api.analysisPeriod.start} – ${api.analysisPeriod.end}` : "This period",
+    date:null,
+    baselineDisplay:formatAmount(s.historicalAverage),
+    deviationDisplay:formatPercent(s.growthPercent),
+    reasonCode:"PERIOD_SPIKE", reason:REASON_CODE_TEXT.PERIOD_SPIKE, reasonSource:"reason_code",
+    isDuplicateCandidate:false,
+    suggestedAction:"Review spending in this category for the period.",
+  }));
+
+  const items = [...anomalyItems, ...spikeItems].sort(
+    (a,b) => severityRank(a.severity)-severityRank(b.severity) || new Date(b.date||0)-new Date(a.date||0)
+  );
+
+  const counts = { high:0, medium:0, low:0 };
+  for(const it of items){ if(counts[it.severity]!==undefined) counts[it.severity]++; }
+
+  return {
+    userId:api.userId ?? null, analysisPeriod:api.analysisPeriod ?? null,
+    baselinePeriods:baselinePeriods ?? null, isInsufficientBaseline,
+    alerts:items, counts, total:items.length, isEmpty:items.length===0,
+  };
+}
+
+/* ------------------------------------------------------------------
+   Sample payloads — shaped exactly like spec §11's example response.
+------------------------------------------------------------------- */
+const SAMPLE_MIXED = {
+  userId:"U4637",
+  analysisPeriod:{ start:"2026-09-01", end:"2026-09-30" },
+  baselinePeriods:3,
+  anomalies:[
+    { transactionId:"T88213", type:"UnusualAmount", severity:"High",
+      amount:25000, category:"Shopping", date:"2026-09-08",
+      baselineValue:9000, deviationPercent:177.78,
+      reasonCode:"AMOUNT_ABOVE_BASELINE", isDuplicateCandidate:false },
+    { transactionId:"T88401", type:"UnusualCategory", severity:"Medium",
+      amount:18400, category:"Entertainment", date:"2026-09-14",
+      baselineValue:8200, deviationPercent:124.39,
+      reasonCode:"CATEGORY_ABOVE_BASELINE", isDuplicateCandidate:false },
+    { transactionId:"T88440", type:"DuplicateTransaction", severity:"Medium",
+      amount:2200, category:"Groceries", date:"2026-09-10",
+      baselineValue:null, deviationPercent:null,
+      reasonCode:"DUPLICATE_CANDIDATE", isDuplicateCandidate:true },
+    // Carries the AI Explanation layer's output (spec §12) — the UI prefers it.
+    { transactionId:"T88512", type:"Unusual Amount", severity:"Low",
+      amount:6400, category:"Transport", date:"2026-09-16",
+      baselineValue:4900, deviationPercent:30.61,
+      reasonCode:"AMOUNT_ABOVE_BASELINE", isDuplicateCandidate:false,
+      explanation:{
+        title:"Unusual Transport expense",
+        whatHappened:"This expense was flagged because its amount is outside the user's normal spending pattern.",
+        whyFlagged:"The amount sits moderately above the verified baseline for this category.",
+        severityText:"Low severity: this is a minor deviation from the normal pattern.",
+        suggestedAction:"Review the transaction and confirm whether the spending was expected."
+      } },
+  ],
+  periodSpikes:[
+    { category:"Food", currentAmount:18000, historicalAverage:13000, growthPercent:38.46, severity:"Medium" },
+  ],
+};
+
+const SAMPLE_EMPTY = {
+  userId:"U9981",
+  analysisPeriod:{ start:"2026-09-01", end:"2026-09-30" },
+  baselinePeriods:4, anomalies:[], periodSpikes:[],
+};
+
+// §5: fewer than 3 comparable periods — must not be shown as a confident "all clear".
+const SAMPLE_INSUFFICIENT = {
+  userId:"U7220",
+  analysisPeriod:{ start:"2026-09-01", end:"2026-09-30" },
+  baselinePeriods:1, anomalies:[], periodSpikes:[],
+};
+
+// §7.4: duplicate is a review candidate — never an automatic delete/reverse.
+const SAMPLE_DUPLICATE = {
+  userId:"U3310",
+  analysisPeriod:{ start:"2026-09-01", end:"2026-09-30" },
+  baselinePeriods:3,
+  anomalies:[
+    { transactionId:"T90021", type:"DuplicateTransaction", severity:"Medium",
+      amount:4500, category:"Utilities", date:"2026-09-12",
+      baselineValue:null, deviationPercent:null,
+      reasonCode:"DUPLICATE_CANDIDATE", isDuplicateCandidate:true },
+  ],
+  periodSpikes:[],
+};
+
+/* ------------------------------------------------------------------ */
+function renderAlerts(api){
+  const data = buildDisplayPayload(api);
+  document.getElementById("periodLabel").textContent =
+    data.analysisPeriod ? `${data.analysisPeriod.start} – ${data.analysisPeriod.end}` : "—";
+
+  const app = document.getElementById("app");
+
+  // §5 — insufficient baseline gets its own state, checked before "all clear".
+  if(data.isEmpty && data.isInsufficientBaseline){
+    app.innerHTML = `
+      <div class="state-box">
+        <div class="icon">◷</div>
+        <h2>Not enough history yet</h2>
+        <p class="sans">We compare your spending against past periods, and there ${data.baselinePeriods === 1 ? "is only 1" : "are only " + data.baselinePeriods}
+        comparable period${data.baselinePeriods === 1 ? "" : "s"} on record so far. Keep recording transactions and alerts will start appearing here.</p>
+      </div>`;
+    return;
+  }
+
+  if(data.isEmpty){
+    app.innerHTML = `
+      <div class="state-box">
+        <div class="icon">✓</div>
+        <h2>Nothing unusual this period</h2>
+        <p class="sans">Your spending for this period looks in line with your usual pattern. We'll flag anything that stands out here.</p>
+      </div>`;
+    return;
+  }
+
+  const baselineWarning = data.isInsufficientBaseline ? `
+    <div class="notice warn sans">
+      Based on limited history — only ${data.baselinePeriods} comparable period${data.baselinePeriods===1?"":"s"} available,
+      fewer than the 3 recommended. Treat these alerts as early signals.
+    </div>` : "";
+
+  const summary = `
+    <div class="summary-row">
+      <div class="summary-chip high"><div class="n">${data.counts.high}</div><div class="l">High</div></div>
+      <div class="summary-chip medium"><div class="n">${data.counts.medium}</div><div class="l">Medium</div></div>
+      <div class="summary-chip low"><div class="n">${data.counts.low}</div><div class="l">Low</div></div>
+    </div>`;
+
+  const cards = data.alerts.map(a => {
+    const meta = [];
+    if(a.amountDisplay) meta.push(`<span>Amount <b>${a.amountDisplay}</b></span>`);
+    meta.push(`<span>Category <b>${a.category}</b></span>`);
+    meta.push(`<span>Date <b>${a.dateDisplay}</b></span>`);
+    if(a.baselineDisplay) meta.push(`<span class="vs">Usual <b>${a.baselineDisplay}</b></span>`);
+    if(a.deviationDisplay) meta.push(`<span class="vs">Difference <b>${a.deviationDisplay}</b></span>`);
+
+    const badges = [`<span class="badge ${a.severity}">${a.severity === "unknown" ? "unrated" : a.severity}</span>`];
+    if(a.isDuplicateCandidate) badges.push(`<span class="badge candidate">candidate</span>`);
+
+    return `
+      <div class="alert-card ${a.severity}">
+        <div class="stripe"></div>
+        <div class="alert-body">
+          <div class="alert-top">
+            <div class="alert-type">${a.type}</div>
+            <div class="badges">${badges.join("")}</div>
+          </div>
+          <div class="alert-meta">${meta.join("")}</div>
+          <div class="alert-reason">
+            <span class="tag">Reason</span>
+            ${a.reason}
+            ${a.reasonSource === "reason_code"
+              ? `<div class="reason-src">Standard wording for rule <code>${a.reasonCode}</code> — the API returns a code, not display text.</div>`
+              : a.reasonSource === "fallback"
+              ? `<div class="reason-src">No reason supplied by the API for this alert.</div>` : ""}
+          </div>
+          <div class="alert-action">${a.suggestedAction}</div>
+        </div>
+      </div>`;
+  }).join("");
+
+  app.innerHTML = baselineWarning + summary + cards;
+}
+
+function renderError(){
+  document.getElementById("periodLabel").textContent = "—";
+  document.getElementById("app").innerHTML = `
+    <div class="state-box">
+      <div class="icon">⚠</div>
+      <h2>Couldn't load your alerts</h2>
+      <p class="sans">Something went wrong on our side. Please try again in a moment.</p>
+    </div>`;
+}
+
+const STATES = {
+  normal:       () => renderAlerts(SAMPLE_MIXED),
+  empty:        () => renderAlerts(SAMPLE_EMPTY),
+  insufficient: () => renderAlerts(SAMPLE_INSUFFICIENT),
+  duplicate:    () => renderAlerts(SAMPLE_DUPLICATE),
+  error:        () => renderError(),
+};
+
+document.querySelectorAll(".dev-toggle button").forEach(btn => {
+  btn.onclick = () => {
+    document.querySelectorAll(".dev-toggle button").forEach(b => b.classList.remove("active"));
+    btn.classList.add("active");
+    STATES[btn.dataset.state]();
+  };
+});
+
+renderAlerts(SAMPLE_MIXED);
+</script>
+</body>
+</html>
