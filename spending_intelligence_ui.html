@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="icon" href="data:,">
+<title>Spending Intelligence — HisabDo AI</title>
+<style>
+  :root{
+    --ink:#22261f;
+    --paper:#f6f1e4;
+    --paper-line:#ded4b8;
+    --ledger-green:#2f5d4f;
+    --ledger-green-deep:#1d3c33;
+    --rise:#8a3324;
+    --fall:#3d6b4a;
+    --muted:#6f6a58;
+    --card:#fffdf6;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--paper);
+    color:var(--ink);
+    font-family:"Iowan Old Style","Palatino Linotype",Georgia,serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  .sans{ font-family:"Helvetica Neue",Arial,sans-serif; }
+
+  .page{ max-width:920px; margin:0 auto; padding:40px 24px 80px; }
+
+  .masthead{
+    display:flex; justify-content:space-between; align-items:baseline;
+    border-bottom:2px solid var(--ink); padding-bottom:14px; margin-bottom:28px;
+  }
+  .masthead h1{ font-size:22px; letter-spacing:0.02em; margin:0; font-weight:600; }
+  .masthead .period{ font-family:"Helvetica Neue",Arial,sans-serif; font-size:13px; color:var(--muted); }
+
+  .hero{
+    display:flex; justify-content:space-between; align-items:flex-end; flex-wrap:wrap; gap:20px;
+    padding:28px 0 32px; border-bottom:1px dashed var(--paper-line); margin-bottom:32px;
+  }
+  .hero-figure .label{
+    font-family:"Helvetica Neue",Arial,sans-serif; font-size:13px; text-transform:uppercase;
+    letter-spacing:0.08em; color:var(--muted); margin-bottom:6px;
+  }
+  .hero-figure .amount{ font-size:56px; line-height:1; font-weight:600; font-variant-numeric:tabular-nums; }
+  .hero-compare{ font-family:"Helvetica Neue",Arial,sans-serif; text-align:right; font-size:14px; }
+
+  section{ margin-bottom:40px; }
+  .section-title{
+    font-family:"Helvetica Neue",Arial,sans-serif; font-size:13px; text-transform:uppercase;
+    letter-spacing:0.08em; color:var(--muted); border-bottom:1px solid var(--paper-line);
+    padding-bottom:8px; margin-bottom:18px; display:flex; justify-content:space-between;
+  }
+
+  .cat-row{
+    display:grid; grid-template-columns:130px 1fr 110px; align-items:center; gap:14px;
+    padding:10px 0; border-bottom:1px solid var(--paper-line); font-family:"Helvetica Neue",Arial,sans-serif;
+  }
+  .cat-row:last-child{ border-bottom:none; }
+  .cat-name{ font-size:14px; }
+  .cat-name .flag{ display:block; font-size:11px; color:var(--rise); margin-top:2px; }
+  .cat-bar-track{ height:10px; background:#ece4cf; border-radius:2px; overflow:hidden; }
+  .cat-bar-fill{ height:100%; background:var(--ledger-green); border-radius:2px; }
+  .cat-bar-fill.flagged{ background:var(--rise); }
+  .cat-amount{ text-align:right; font-size:13px; font-variant-numeric:tabular-nums; color:var(--muted); }
+  .cat-amount b{ color:var(--ink); font-weight:600; display:block; font-size:14px;}
+
+  .trend-wrap{ background:var(--card); border:1px solid var(--paper-line); padding:18px; }
+  #trendCanvas{ width:100%; height:180px; display:block; }
+  .trend-note{ font-family:"Helvetica Neue",Arial,sans-serif; font-size:12px; color:var(--muted); margin-top:10px; }
+
+  .unavailable-box{
+    border:1px dashed var(--paper-line); padding:18px 20px; font-family:"Helvetica Neue",Arial,sans-serif;
+  }
+  .unavailable-box .head{ font-weight:700; font-size:14px; margin-bottom:6px; }
+  .unavailable-box p{ font-size:13px; color:var(--muted); margin:0; line-height:1.5; }
+
+  .insight-box{
+    background:var(--ledger-green-deep); color:#f3f1e6; padding:20px 22px; font-size:15px; line-height:1.55;
+  }
+  .insight-box .tag{
+    font-family:"Helvetica Neue",Arial,sans-serif; font-size:11px; text-transform:uppercase;
+    letter-spacing:0.08em; opacity:0.7; margin-bottom:8px;
+  }
+  .insight-fallback-note{ font-family:"Helvetica Neue",Arial,sans-serif; font-size:11px; color:var(--muted); margin-top:8px; }
+
+  .empty-state{ text-align:center; padding:64px 20px; border:1px dashed var(--paper-line); }
+  .empty-state h2{ font-size:20px; margin-bottom:8px; }
+  .empty-state p{ font-family:"Helvetica Neue",Arial,sans-serif; color:var(--muted); font-size:14px; max-width:420px; margin:0 auto; }
+
+  .dev-toggle{ font-family:"Helvetica Neue",Arial,sans-serif; font-size:12px; text-align:center; margin-bottom:20px; }
+  .dev-toggle button{
+    font-family:inherit; font-size:12px; padding:6px 12px; margin:0 4px;
+    border:1px solid var(--ink); background:var(--card); cursor:pointer;
+  }
+  .dev-toggle button.active{ background:var(--ink); color:var(--paper); }
+
+  @media (max-width:640px){
+    .cat-row{ grid-template-columns:100px 1fr 80px; }
+    .hero-figure .amount{ font-size:40px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="page">
+
+  <div class="dev-toggle sans">
+    <button id="btnNormal" class="active">Normal (real demo dataset, POST /api/budgets/analysis + /api/forecasting)</button>
+    <button id="btnEmpty">Insufficient data (status: "insufficient_data")</button>
+  </div>
+
+  <div class="masthead">
+    <h1>Spending Intelligence</h1>
+    <div class="period" id="periodLabel">—</div>
+  </div>
+
+  <div id="app"></div>
+
+</div>
+
+<script type="module">
+// ---------------------------------------------------------------------
+// Inline copy of the display-building logic from spending_intelligence_client.js
+// so this file previews standalone with no build step. In the real app,
+// import from that file instead of duplicating this.
+// ---------------------------------------------------------------------
+function monthsBetween(fromStr, toStr) {
+  const from = new Date(fromStr);
+  const to = new Date(toStr);
+  return (to.getUTCFullYear() - from.getUTCFullYear()) * 12 + (to.getUTCMonth() - from.getUTCMonth()) + 1;
+}
+
+function rankTopCategories(analysisResult, limit) {
+  limit = limit || 5;
+  const months = monthsBetween(analysisResult.from, analysisResult.to);
+  const totalExpense = analysisResult.totalExpense || 0;
+  return analysisResult.categories
+    .map(c => {
+      const amount = Math.round(c.averageMonthlySpend * months * 100) / 100;
+      return {
+        category: c.category,
+        amount,
+        percentage: totalExpense > 0 ? Math.round((amount / totalExpense) * 10000) / 100 : null,
+        budgetStatus: c.needsAdjustment ? "Needs Attention" : "On Track",
+        adjustmentReason: c.adjustmentReason,
+      };
+    })
+    .sort((a, b) => b.amount - a.amount)
+    .slice(0, limit);
+}
+
+function getRecurringStatus() {
+  return {
+    available: false,
+    reason: "Neither endpoint returns individual transactions (only category averages and period totals), " +
+      "so a genuinely repeating charge can't be detected from this API yet.",
+  };
+}
+
+function buildFallbackInsight({ totalExpense, topCategories, historicalTrend }) {
+  const lines = [];
+  if (topCategories.length) {
+    const top = topCategories[0];
+    lines.push(top.percentage != null
+      ? `${top.category} is the largest spending category at ${top.percentage}% of total spending.`
+      : `${top.category} is the largest spending category.`);
+  }
+  const flagged = topCategories.filter(c => c.adjustmentReason === "Average spending exceeds the budget.");
+  if (flagged.length) lines.push(`${flagged.map(c => c.category).join(", ")} ${flagged.length > 1 ? "are" : "is"} over budget.`);
+  if (historicalTrend && historicalTrend.length >= 2) {
+    const first = historicalTrend[0].expense, last = historicalTrend[historicalTrend.length - 1].expense;
+    if (first > 0) {
+      const change = Math.round(((last - first) / first) * 10000) / 100;
+      if (change > 10) lines.push(`Monthly spending has trended up ${change}% over this period.`);
+      else if (change < -10) lines.push(`Monthly spending has trended down ${Math.abs(change)}% over this period.`);
+    }
+  }
+  if (!lines.length) lines.push(`Total spending for this period is Rs ${Math.round(totalExpense).toLocaleString()}.`);
+  return lines.join(" ");
+}
+
+function buildDisplayPayload(analysisResult, forecastResult) {
+  const isEmpty = analysisResult.status === "insufficient_data";
+  if (isEmpty) {
+    return {
+      period: { from: analysisResult.from, to: analysisResult.to },
+      isEmpty: true,
+      emptyReason: "Not enough data yet — this view needs at least 3 months of transaction history and at least one budget category configured before it can show a breakdown.",
+      totalSpending: { amount: analysisResult.totalExpense, display: `Rs ${Math.round(analysisResult.totalExpense).toLocaleString()}` },
+    };
+  }
+  const topCategories = rankTopCategories(analysisResult);
+  const recurring = getRecurringStatus();
+  const monthlyTrend = (forecastResult && forecastResult.historical) ? forecastResult.historical.map(h => ({ period: h.period, expense: h.expense })) : [];
+  const insight = buildFallbackInsight({ totalExpense: analysisResult.totalExpense, topCategories, historicalTrend: (forecastResult && forecastResult.historical) || [] });
+  return {
+    period: { from: analysisResult.from, to: analysisResult.to },
+    isEmpty: false,
+    totalSpending: { amount: analysisResult.totalExpense, display: `Rs ${Math.round(analysisResult.totalExpense).toLocaleString()}` },
+    totalIncome: analysisResult.totalIncome,
+    topCategories, monthlyTrend, trendAvailable: monthlyTrend.length > 0,
+    recurring, aiInsight: insight, aiInsightIsFallback: true,
+  };
+}
+
+// ---------------------------------------------------------------------
+// Verified ground-truth fixtures — computed by reference_port.py from the
+// EXACT dataset seeded in DemoAdapters.cs, run through the EXACT formulas
+// in BudgetAnalysisService.cs / ForecastingService.cs.
+// ---------------------------------------------------------------------
+const ANALYSIS_READY = {
+  userId: "11111111-1111-1111-1111-111111111111", from: "2026-01-01", to: "2026-05-31",
+  status: "ready", monthsWithData: 5, totalIncome: 26000, totalExpense: 16500,
+  categories: [
+    { category: "Food", averageMonthlySpend: 0, currentBudget: 700, utilizationPercent: 0, recommendedBudget: 0, needsAdjustment: true, adjustmentReason: "Budget is materially underused." },
+    { category: "Housing", averageMonthlySpend: 0, currentBudget: 1500, utilizationPercent: 0, recommendedBudget: 0, needsAdjustment: true, adjustmentReason: "Budget is materially underused." },
+    { category: "Living", averageMonthlySpend: 3300, currentBudget: 0, utilizationPercent: 100, recommendedBudget: 3630, needsAdjustment: true, adjustmentReason: "No budget exists." },
+    { category: "Transport", averageMonthlySpend: 0, currentBudget: 400, utilizationPercent: 0, recommendedBudget: 0, needsAdjustment: true, adjustmentReason: "Budget is materially underused." },
+  ],
+};
+
+const FORECAST_READY = {
+  userId: "11111111-1111-1111-1111-111111111111", frequency: "Monthly",
+  historical: [
+    { period: "2026-01", income: 5000, expense: 3200, savings: 1800, openingBalance: 10000, closingBalance: 11800 },
+    { period: "2026-02", income: 5100, expense: 3300, savings: 1800, openingBalance: 11800, closingBalance: 13600 },
+    { period: "2026-03", income: 5200, expense: 3100, savings: 2100, openingBalance: 13600, closingBalance: 15700 },
+    { period: "2026-04", income: 5300, expense: 3400, savings: 1900, openingBalance: 15700, closingBalance: 17600 },
+    { period: "2026-05", income: 5400, expense: 3500, savings: 1900, openingBalance: 17600, closingBalance: 19500 },
+  ],
+  expected: [{ period: "Forecast-1", income: 5200, expense: 3300, savings: 1900, openingBalance: null, closingBalance: null }],
+};
+
+// Real response for a 2-month request (Jan-Feb 2026) against the same seed
+// data: monthsWithData = 2 < 3 -> status "insufficient_data" per the C#
+// service's own MinimumMonths gate.
+const ANALYSIS_INSUFFICIENT = {
+  userId: "11111111-1111-1111-1111-111111111111", from: "2026-01-01", to: "2026-02-28",
+  status: "insufficient_data", monthsWithData: 2, totalIncome: 10100, totalExpense: 6500, categories: [],
+};
+
+function fmt(n){ return "Rs " + Math.round(n).toLocaleString(); }
+
+// ---------------------------------------------------------------------
+// CHANGED: render() can now accept either:
+// 1) the old demo fixture pair: render(analysis, forecast)
+// 2) the real display payload: render(result.data)
+// ---------------------------------------------------------------------
+function render(analysisOrDisplayData, forecast) {
+  const isDisplayPayload =
+    forecast === undefined &&
+    analysisOrDisplayData &&
+    analysisOrDisplayData.period &&
+    analysisOrDisplayData.totalSpending;
+
+  const data = isDisplayPayload
+    ? analysisOrDisplayData
+    : buildDisplayPayload(analysisOrDisplayData, forecast);
+
+  document.getElementById("periodLabel").textContent = `${data.period.from} – ${data.period.to}`;
+  const app = document.getElementById("app");
+
+  if (data.isEmpty) {
+    app.innerHTML = `
+      <div class="empty-state">
+        <h2>Not enough data yet</h2>
+        <p class="sans">${data.emptyReason}</p>
+        <p class="sans" style="margin-top:14px;">Total recorded so far this period: <b>${data.totalSpending.display}</b></p>
+      </div>`;
+    return;
+  }
+
+  const maxCat = Math.max(...data.topCategories.map(c => c.amount), 1);
+  const catRows = data.topCategories.map(c => `
+    <div class="cat-row">
+      <div class="cat-name">${c.category}${c.budgetStatus === "Needs Attention" ? `<span class="flag sans">${c.adjustmentReason}</span>` : ""}</div>
+      <div class="cat-bar-track"><div class="cat-bar-fill${c.budgetStatus === "Needs Attention" && c.adjustmentReason === "Average spending exceeds the budget." ? " flagged" : ""}" style="width:${(c.amount/maxCat*100).toFixed(1)}%"></div></div>
+      <div class="cat-amount"><b>${c.percentage != null ? c.percentage + '%' : '—'}</b>${fmt(c.amount)}</div>
+    </div>`).join("");
+
+  app.innerHTML = `
+    <div class="hero">
+      <div class="hero-figure">
+        <div class="label">Total Spending</div>
+        <div class="amount">${data.totalSpending.display}</div>
+      </div>
+      <div class="hero-compare">
+        <div>Total income this period: ${fmt(data.totalIncome)}</div>
+      </div>
+    </div>
+
+    <section>
+      <div class="section-title"><span>Category-Wise Spending</span><span>% of total</span></div>
+      ${catRows}
+    </section>
+
+    <section>
+      <div class="section-title"><span>Monthly Spending Trend</span><span class="sans" style="text-transform:none;">from POST /api/forecasting</span></div>
+      <div class="trend-wrap">
+        ${data.trendAvailable ? `<canvas id="trendCanvas" width="860" height="180"></canvas>
+        <div class="trend-note sans">Real per-month expense totals from the forecasting endpoint's historical[] array.</div>` :
+        `<div class="unavailable-box"><div class="head">Trend unavailable</div><p class="sans">The forecasting engine needs at least 3 usable periods of data; category totals above are still accurate.</p></div>`}
+      </div>
+    </section>
+
+    <section>
+      <div class="section-title"><span>Recurring Spending</span></div>
+      <div class="unavailable-box">
+        <div class="head">Not available yet</div>
+        <p>${data.recurring.reason}</p>
+      </div>
+    </section>
+
+    <section>
+      <div class="section-title"><span>AI Spending Insight</span></div>
+      <div class="insight-box">
+        <div class="tag">Generated from verified numbers above</div>
+        ${data.aiInsight}
+      </div>
+      <div class="insight-fallback-note sans">⚠ Rule-based fallback — no AI insight field exists in either real endpoint yet.</div>
+    </section>
+  `;
+
+  if (data.trendAvailable) drawTrend(data.monthlyTrend.map(m => ({ month: m.period.slice(5), total: m.expense })));
+}
+
+function drawTrend(points) {
+  const canvas = document.getElementById("trendCanvas");
+  const ctx = canvas.getContext("2d");
+  const w = canvas.width, h = canvas.height, pad = 30;
+  ctx.clearRect(0,0,w,h);
+  const max = Math.max(...points.map(p => p.total)) * 1.15;
+  const stepX = (w - pad*2) / (points.length - 1 || 1);
+
+  ctx.strokeStyle = "#e3d9bd"; ctx.lineWidth = 1;
+  for (let i=0;i<=3;i++){ const y = pad + (h-pad*2)/3*i; ctx.beginPath(); ctx.moveTo(pad,y); ctx.lineTo(w-pad,y); ctx.stroke(); }
+
+  ctx.strokeStyle = "#2f5d4f"; ctx.lineWidth = 2.5; ctx.beginPath();
+  points.forEach((p,i)=>{ const x = pad + stepX*i; const y = h - pad - (p.total/max)*(h-pad*2); if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y); });
+  ctx.stroke();
+
+  ctx.font = "11px Helvetica, Arial, sans-serif"; ctx.textAlign = "center";
+  points.forEach((p,i)=>{
+    const x = pad + stepX*i; const y = h - pad - (p.total/max)*(h-pad*2);
+    ctx.fillStyle = "#2f5d4f"; ctx.beginPath(); ctx.arc(x,y,3,0,Math.PI*2); ctx.fill();
+    ctx.fillStyle = "#6f6a58"; ctx.fillText(p.month, x, h-8);
+  });
+}
+
+// Keep the demo buttons working.
+document.getElementById("btnNormal").onclick = () => {
+  render(ANALYSIS_READY, FORECAST_READY);
+  document.getElementById("btnNormal").classList.add("active");
+  document.getElementById("btnEmpty").classList.remove("active");
+};
+document.getElementById("btnEmpty").onclick = () => {
+  render(ANALYSIS_INSUFFICIENT, null);
+  document.getElementById("btnEmpty").classList.add("active");
+  document.getElementById("btnNormal").classList.remove("active");
+};
+
+// Initial demo render while the real API request is being made.
+render(ANALYSIS_READY, FORECAST_READY);
+
+// ---------------------------------------------------------------------
+// REAL BACKEND CONNECTION
+// ---------------------------------------------------------------------
+import { getSpendingIntelligenceForUI, DEMO_USER_ID } from "./spending_intelligence_client.js";
+
+const result = await getSpendingIntelligenceForUI(
+  DEMO_USER_ID,
+  "2026-01-01",
+  "2026-05-31",
+  { baseUrl: "http://localhost:5000" }
+);
+
+if (result.ok) {
+  console.log("Real API data:", result.data);
+
+  // CHANGED: result.data is already the display payload.
+  // Do NOT use result.data.analysis / result.data.forecast.
+  render(result.data);
+
+  // Keep the Normal button marked as the current view.
+  document.getElementById("btnNormal").classList.add("active");
+  document.getElementById("btnEmpty").classList.remove("active");
+} else {
+  console.log("API Error:", result.errorState);
+}
+</script>
+
+</body>
+</html>
