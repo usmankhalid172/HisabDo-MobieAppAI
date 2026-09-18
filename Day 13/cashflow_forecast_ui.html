@@ -1,0 +1,643 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cash Flow Forecast — HisabDo AI</title>
+<style>
+  :root{
+    --ink:#22261f;
+    --paper:#f6f1e4;
+    --paper-line:#ded4b8;
+    --muted:#6f6a58;
+    --card:#fffdf6;
+    --ledger-green:#2f5d4f;
+    --ledger-green-deep:#1d3c33;
+    --positive:#3d6b4a;
+    --negative:#8a3324;
+    --forecast-tint:#eef3ee;
+    --forecast-edge:#a8bdb0;
+  }
+  *{ box-sizing:border-box; }
+  body{
+    margin:0; background:var(--paper); color:var(--ink);
+    font-family:"Iowan Old Style","Palatino Linotype",Georgia,serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  .sans{ font-family:"Helvetica Neue",Arial,sans-serif; }
+  .page{ max-width:860px; margin:0 auto; padding:34px 22px 80px; }
+
+  .dev-toggle{ font-family:"Helvetica Neue",Arial,sans-serif; font-size:12px; text-align:center; margin-bottom:18px; }
+  .dev-toggle button{
+    font-family:inherit; font-size:11.5px; padding:6px 11px; margin:3px;
+    border:1px solid var(--ink); background:var(--card); cursor:pointer;
+  }
+  .dev-toggle button.active{ background:var(--ink); color:var(--paper); }
+
+  .notice{
+    font-family:"Helvetica Neue",Arial,sans-serif; font-size:12.5px; line-height:1.5;
+    padding:11px 14px; margin-bottom:18px; border:1px solid var(--paper-line);
+    background:var(--card); color:var(--muted);
+  }
+  .notice.warn{ background:#fdf3e3; border-color:#e3cf9c; color:#6b5124; }
+
+  /* ── Section header ───────────────────────────────────────────── */
+  .masthead{
+    display:flex; justify-content:space-between; align-items:flex-start; gap:14px; flex-wrap:wrap;
+    border-bottom:2px solid var(--ink); padding-bottom:13px; margin-bottom:16px;
+  }
+  .masthead h1{ font-size:22px; margin:0 0 5px; font-weight:600; letter-spacing:0.02em; }
+  .masthead .sub{ font-family:"Helvetica Neue",Arial,sans-serif; font-size:12.5px; color:var(--muted); }
+  .period-block{ text-align:right; font-family:"Helvetica Neue",Arial,sans-serif; }
+  .period-block .lbl{ font-size:10.5px; text-transform:uppercase; letter-spacing:0.07em; color:var(--muted); }
+  .period-block .val{ font-size:16px; font-weight:600; margin-top:3px; }
+
+  /* Requirement 11: forecast values must never read as actuals. */
+  .forecast-banner{
+    display:flex; align-items:center; gap:9px;
+    background:var(--forecast-tint); border:1px solid var(--forecast-edge);
+    padding:10px 14px; margin-bottom:22px;
+    font-family:"Helvetica Neue",Arial,sans-serif; font-size:12.5px; color:var(--ledger-green-deep);
+  }
+  .forecast-banner .pill{
+    font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:0.07em;
+    background:var(--ledger-green); color:#f3f1e6; padding:3px 9px; border-radius:10px; white-space:nowrap;
+  }
+
+  /* ── Forecast figures ─────────────────────────────────────────── */
+  .figures{
+    display:grid; grid-template-columns:repeat(4,1fr); gap:1px;
+    background:var(--paper-line); border:1px solid var(--paper-line); margin-bottom:12px;
+  }
+  .figure{ background:var(--card); padding:16px 15px; position:relative; }
+  .figure .lbl{
+    font-family:"Helvetica Neue",Arial,sans-serif; font-size:10.5px; text-transform:uppercase;
+    letter-spacing:0.06em; color:var(--muted); margin-bottom:7px; display:flex; align-items:center; gap:5px;
+  }
+  .figure .est{
+    font-size:8.5px; background:var(--forecast-tint); color:var(--ledger-green-deep);
+    border:1px solid var(--forecast-edge); padding:1px 5px; border-radius:8px;
+    letter-spacing:0.04em; font-weight:700;
+  }
+  .figure .val{ font-size:25px; font-weight:600; font-variant-numeric:tabular-nums; line-height:1.1; }
+  .figure .val.positive{ color:var(--positive); }
+  .figure .val.negative{ color:var(--negative); }
+  .figure .val.unavailable{ font-size:15px; color:var(--muted); font-family:"Helvetica Neue",Arial,sans-serif; font-weight:400; }
+  .figure .note{
+    font-family:"Helvetica Neue",Arial,sans-serif; font-size:11px; color:var(--muted); margin-top:6px; line-height:1.4;
+  }
+
+  /* ── Confidence ───────────────────────────────────────────────── */
+  .confidence-row{
+    display:flex; align-items:center; gap:11px; flex-wrap:wrap;
+    padding:12px 15px; border:1px solid var(--paper-line); background:var(--card); margin-bottom:26px;
+    font-family:"Helvetica Neue",Arial,sans-serif; font-size:12.5px; color:var(--muted);
+  }
+  .conf-badge{
+    font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:0.05em;
+    padding:3px 10px; border-radius:10px; white-space:nowrap;
+  }
+  .conf-badge.high{ background:#e8ede0; color:#3d5a2e; }
+  .conf-badge.medium{ background:#f7edd6; color:#8a6a1f; }
+  .conf-badge.low{ background:#f7e4dd; color:#8a3324; }
+  .conf-badge.limited,.conf-badge.unavailable{ background:#eee8d8; color:var(--muted); }
+  .derived-tag{
+    font-size:10.5px; color:var(--muted); border-left:1px solid var(--paper-line); padding-left:11px;
+  }
+
+  /* ── Sections ─────────────────────────────────────────────────── */
+  section{ margin-bottom:30px; }
+  .section-title{
+    font-family:"Helvetica Neue",Arial,sans-serif; font-size:12.5px; text-transform:uppercase;
+    letter-spacing:0.08em; color:var(--muted); border-bottom:1px solid var(--paper-line);
+    padding-bottom:8px; margin-bottom:15px; display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap;
+  }
+
+  /* ── Historical vs forecast comparison ────────────────────────── */
+  .compare-wrap{ border:1px solid var(--paper-line); background:var(--card); padding:17px; }
+  #compareCanvas{ width:100%; height:190px; display:block; }
+  .legend{
+    display:flex; gap:18px; flex-wrap:wrap; margin-top:12px;
+    font-family:"Helvetica Neue",Arial,sans-serif; font-size:11.5px; color:var(--muted);
+  }
+  .legend span{ display:flex; align-items:center; gap:6px; }
+  .swatch{ width:14px; height:3px; border-radius:2px; display:inline-block; }
+  .swatch.actual{ background:var(--ledger-green); }
+  .swatch.forecast{ background:var(--ledger-green); opacity:0.45; }
+  .swatch.expense{ background:var(--negative); }
+
+  table.compare{
+    width:100%; border-collapse:collapse; margin-top:16px;
+    font-family:"Helvetica Neue",Arial,sans-serif; font-size:12.5px;
+  }
+  table.compare th{
+    text-align:right; font-weight:600; color:var(--muted); font-size:10.5px;
+    text-transform:uppercase; letter-spacing:0.05em; padding:7px 9px; border-bottom:1px solid var(--paper-line);
+  }
+  table.compare th:first-child{ text-align:left; }
+  table.compare td{ text-align:right; padding:7px 9px; border-bottom:1px solid var(--paper-line); font-variant-numeric:tabular-nums; }
+  table.compare td:first-child{ text-align:left; }
+  table.compare tr.forecast-row{ background:var(--forecast-tint); }
+  table.compare tr.forecast-row td:first-child{ font-weight:600; }
+  .row-tag{
+    font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:0.05em;
+    background:var(--ledger-green); color:#f3f1e6; padding:1px 6px; border-radius:7px; margin-left:7px;
+  }
+
+  /* ── AI insight ───────────────────────────────────────────────── */
+  .insight-box{
+    background:var(--ledger-green-deep); color:#f3f1e6; padding:19px 21px; font-size:14.5px; line-height:1.6;
+  }
+  .insight-box .tag{
+    font-family:"Helvetica Neue",Arial,sans-serif; font-size:10.5px; text-transform:uppercase;
+    letter-spacing:0.08em; opacity:0.72; margin-bottom:8px;
+  }
+  .insight-box .obs{
+    margin-top:12px; padding-top:12px; border-top:1px solid rgba(243,241,230,0.22);
+    font-family:"Helvetica Neue",Arial,sans-serif; font-size:13px; opacity:0.92;
+  }
+  .insight-note{
+    font-family:"Helvetica Neue",Arial,sans-serif; font-size:11px; color:var(--muted); margin-top:8px;
+  }
+
+  .limitations{
+    font-family:"Helvetica Neue",Arial,sans-serif; font-size:12.5px; color:var(--muted);
+    margin-top:14px; padding-left:18px; line-height:1.6;
+  }
+
+  /* ── States ───────────────────────────────────────────────────── */
+  .state-box{ text-align:center; padding:56px 22px; border:1px dashed var(--paper-line); background:var(--card); }
+  .state-box .icon{ font-size:29px; margin-bottom:11px; line-height:1; }
+  .state-box h2{ font-size:19px; margin:0 0 8px; }
+  .state-box p{
+    font-family:"Helvetica Neue",Arial,sans-serif; color:var(--muted);
+    font-size:13.5px; line-height:1.55; max-width:410px; margin:0 auto;
+  }
+
+  /* Loading skeleton (requirement 10) */
+  @keyframes shimmer{ 0%{opacity:0.45;} 50%{opacity:0.85;} 100%{opacity:0.45;} }
+  .skel{ background:#e9e1cb; border-radius:3px; animation:shimmer 1.4s ease-in-out infinite; }
+  .skel-figures{ display:grid; grid-template-columns:repeat(4,1fr); gap:1px; background:var(--paper-line); border:1px solid var(--paper-line); margin-bottom:12px; }
+  .skel-fig{ background:var(--card); padding:16px 15px; }
+  .skel-fig .skel.l{ height:9px; width:62%; margin-bottom:11px; }
+  .skel-fig .skel.v{ height:23px; width:83%; }
+  .skel-bar{ height:44px; margin-bottom:12px; }
+  .skel-chart{ height:190px; }
+  .sr-only{ position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0,0,0,0); }
+
+  @media (max-width:720px){
+    .figures,.skel-figures{ grid-template-columns:repeat(2,1fr); }
+  }
+  @media (max-width:460px){
+    .figures,.skel-figures{ grid-template-columns:1fr; }
+    .masthead{ flex-direction:column; }
+    .period-block{ text-align:left; }
+    table.compare{ font-size:11.5px; }
+    table.compare th,table.compare td{ padding:6px 5px; }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <div class="dev-toggle sans">
+    <button data-state="normal" class="active">Forecast (real contract)</button>
+    <button data-state="spec">Spec contract</button>
+    <button data-state="negative">Negative cash flow</button>
+    <button data-state="nobalance">No opening balance</button>
+    <button data-state="loading">Loading</button>
+    <button data-state="insufficient">Insufficient data</button>
+    <button data-state="error">API error</button>
+  </div>
+
+  <div class="notice sans">
+    Built against both Day 13 contracts — the spec's
+    <code>GET /api/ai/cash-flow-forecast/&#123;userId&#125;</code> (§9) and the implemented
+    <code>POST /api/forecasting</code> (<code>Forecasting/</code>, branch <code>feature/calculations</code>).
+    They differ; see the task report. Sample payloads below mirror both shapes exactly.
+  </div>
+
+  <div class="masthead">
+    <div>
+      <h1>Cash Flow Forecast</h1>
+      <div class="sub" id="methodLabel">—</div>
+    </div>
+    <div class="period-block">
+      <div class="lbl">Forecast period</div>
+      <div class="val" id="periodLabel">—</div>
+    </div>
+  </div>
+
+  <div id="app"></div>
+</div>
+
+<script>
+/* ------------------------------------------------------------------
+   Inline copy of the display logic from cashflow_forecast_client.js so
+   this file previews standalone. In the real app, import that module.
+------------------------------------------------------------------- */
+const CONFIDENCE_COPY = {
+  High:"Based on 6 months of fairly complete history.",
+  Medium:"Based on 3–5 months of history.",
+  Low:"Based on fewer than 3 months of history — treat this as a rough guide.",
+  Limited:"Some historical months are missing or inconsistent.",
+  Unavailable:"There isn't enough verified history to produce a forecast.",
+};
+
+function deriveConfidence(m){
+  if(!m || m<=0) return "Unavailable";
+  if(m>=6) return "High";
+  if(m>=3) return "Medium";
+  return "Low";
+}
+
+function buildFallbackInsight({expectedIncome,expectedExpense,expectedSaving,expectedClosingBalance,confidence,historyMonthsUsed}){
+  const money = v => "Rs " + Math.round(v).toLocaleString();
+  const lines = [];
+  if(expectedIncome!=null && expectedExpense!=null){
+    lines.push(`Based on your recent pattern, expected income is ${money(expectedIncome)} and expected expenses are ${money(expectedExpense)} for the forecast period.`);
+  }
+  if(expectedSaving!=null){
+    lines.push(expectedSaving>0
+      ? `That leaves an expected saving of ${money(expectedSaving)} — a positive cash flow outlook.`
+      : expectedSaving<0
+      ? `That points to spending exceeding income by ${money(Math.abs(expectedSaving))} — a negative cash flow outlook worth reviewing.`
+      : `Income and expenses are expected to roughly balance out.`);
+  }
+  if(expectedClosingBalance!=null) lines.push(`Expected closing balance is ${money(expectedClosingBalance)}.`);
+  else lines.push("Closing balance isn't available because no trusted opening balance was provided.");
+  if(historyMonthsUsed) lines.push(`This estimate uses ${historyMonthsUsed} month${historyMonthsUsed===1?"":"s"} of history.`);
+  if(confidence && CONFIDENCE_COPY[confidence]) lines.push(CONFIDENCE_COPY[confidence]);
+  lines.push("Actual results can differ from this estimate.");
+  return lines.join(" ");
+}
+
+function normalisePeriod(p){
+  return { period:p.period, income:p.income??null, expense:p.expense??null,
+           savings:p.savings??null, openingBalance:p.openingBalance??null, closingBalance:p.closingBalance??null };
+}
+function buildPeriodLabel(expected){
+  if(!expected.length) return "—";
+  if(expected.length===1) return expected[0].period;
+  return `${expected[0].period} – ${expected[expected.length-1].period}`;
+}
+
+function buildDisplayPayload(api){
+  const isReal = Array.isArray(api.expected) || Array.isArray(api.historical);
+  if(isReal){
+    const historical = api.historical||[], expected = api.expected||[];
+    const usableMonths = historical.filter(p => (p.income??0)!==0 || (p.expense??0)!==0).length;
+    const first = expected[0]||null;
+    const confidence = deriveConfidence(usableMonths);
+    const core = {
+      expectedIncome:first?first.income??null:null,
+      expectedExpense:first?first.expense??null:null,
+      expectedSaving:first?first.savings??null:null,
+      openingBalance:first?first.openingBalance??null:null,
+      expectedClosingBalance:first?first.closingBalance??null:null,
+    };
+    return { contract:"real", userId:api.userId??null, frequency:api.frequency??"Monthly",
+      forecastPeriodLabel:buildPeriodLabel(expected), historyMonthsUsed:usableMonths, ...core,
+      confidence, confidenceIsDerived:true, confidenceNote:CONFIDENCE_COPY[confidence]||null,
+      method:api.method??null, limitations:api.limitations||[],
+      historicalPeriods:historical.map(normalisePeriod), expectedPeriods:expected.map(normalisePeriod),
+      hasComparison:historical.length>0,
+      insight:api.explanation||api.aiExplanation||null,
+      insightIsFallback:!(api.explanation||api.aiExplanation),
+      fallbackInsight:buildFallbackInsight({...core,confidence,historyMonthsUsed:usableMonths}),
+      isForecastAvailable:expected.length>0 };
+  }
+  const confidence = api.confidence || deriveConfidence(api.historyMonthsUsed);
+  const core = {
+    expectedIncome:api.expectedIncome??null, expectedExpense:api.expectedExpense??null,
+    expectedSaving:api.expectedSaving??null, openingBalance:api.openingBalance??null,
+    expectedClosingBalance:api.expectedClosingBalance??null,
+  };
+  return { contract:"spec", userId:api.userId??null, frequency:"Monthly",
+    forecastPeriodLabel: api.forecastHorizonMonths===1 ? "Next month" : `Next ${api.forecastHorizonMonths} months`,
+    historyMonthsUsed:api.historyMonthsUsed??null, ...core,
+    confidence, confidenceIsDerived:!api.confidence, confidenceNote:CONFIDENCE_COPY[confidence]||null,
+    method:api.method??null, limitations:api.limitations||[],
+    historicalPeriods:[], expectedPeriods:[], hasComparison:false,
+    insight:api.explanation||api.aiExplanation||null,
+    insightIsFallback:!(api.explanation||api.aiExplanation),
+    fallbackInsight:buildFallbackInsight({...core,confidence,historyMonthsUsed:api.historyMonthsUsed}),
+    isForecastAvailable:api.expectedIncome!=null||api.expectedExpense!=null };
+}
+
+/* ------------------------------------------------------------------
+   Sample payloads — exact shapes from both contracts.
+------------------------------------------------------------------- */
+// Contract (B) — Forecasting/Models.cs ForecastResult
+const SAMPLE_REAL = {
+  userId:"8f14e45f-ceea-467a-9f0b-1c4e9a2b7d31",
+  frequency:"Monthly",
+  historical:[
+    { period:"2026-03", income:148000, expense:96000,  savings:52000, openingBalance:200000, closingBalance:252000 },
+    { period:"2026-04", income:145000, expense:104000, savings:41000, openingBalance:252000, closingBalance:293000 },
+    { period:"2026-05", income:152000, expense:99000,  savings:53000, openingBalance:293000, closingBalance:346000 },
+    { period:"2026-06", income:150000, expense:112000, savings:38000, openingBalance:346000, closingBalance:384000 },
+    { period:"2026-07", income:149000, expense:107000, savings:42000, openingBalance:384000, closingBalance:426000 },
+    { period:"2026-08", income:156000, expense:113000, savings:43000, openingBalance:426000, closingBalance:469000 },
+  ],
+  expected:[
+    { period:"2026-09", income:150000, expense:108500, savings:41500, openingBalance:469000, closingBalance:510500 },
+  ],
+};
+
+// Contract (A) — spec §9 example response, verbatim shape
+const SAMPLE_SPEC = {
+  userId:"USER_ID",
+  historyMonthsUsed:6,
+  forecastHorizonMonths:1,
+  expectedIncome:150000.00,
+  expectedExpense:108500.00,
+  expectedSaving:41500.00,
+  openingBalance:200000.00,
+  expectedClosingBalance:241500.00,
+  confidence:"Medium",
+  method:"HistoricalBaseline",
+  limitations:["Forecast is based on historical transaction behavior"],
+};
+
+// Negative outlook — spec §16 "negative historical cash flow"
+const SAMPLE_NEGATIVE = {
+  userId:"2b7d31a4-ceea-467a-9f0b-8f14e45fc3d2",
+  frequency:"Monthly",
+  historical:[
+    { period:"2026-05", income:92000, expense:101000, savings:-9000,  openingBalance:140000, closingBalance:131000 },
+    { period:"2026-06", income:88000, expense:112000, savings:-24000, openingBalance:131000, closingBalance:107000 },
+    { period:"2026-07", income:95000, expense:118000, savings:-23000, openingBalance:107000, closingBalance:84000 },
+    { period:"2026-08", income:90000, expense:121000, savings:-31000, openingBalance:84000,  closingBalance:53000 },
+  ],
+  expected:[
+    { period:"2026-09", income:91250, expense:113000, savings:-21750, openingBalance:53000, closingBalance:31250 },
+  ],
+};
+
+// §8 "No trusted opening balance → closing balance unavailable"
+const SAMPLE_NO_BALANCE = {
+  userId:"c3d29a4b-ceea-467a-9f0b-8f14e45f2b7d",
+  frequency:"Monthly",
+  historical:[
+    { period:"2026-06", income:78000, expense:61000, savings:17000, openingBalance:null, closingBalance:null },
+    { period:"2026-07", income:82000, expense:58000, savings:24000, openingBalance:null, closingBalance:null },
+    { period:"2026-08", income:80000, expense:64000, savings:16000, openingBalance:null, closingBalance:null },
+  ],
+  expected:[
+    { period:"2026-09", income:80000, expense:61000, savings:19000, openingBalance:null, closingBalance:null },
+  ],
+};
+
+/* ------------------------------------------------------------------ */
+const money = v => "Rs " + Math.round(v).toLocaleString();
+
+function renderForecast(api){
+  const d = buildDisplayPayload(api);
+  document.getElementById("periodLabel").textContent = d.forecastPeriodLabel;
+  document.getElementById("methodLabel").textContent =
+    `Estimated from ${d.historyMonthsUsed || 0} month${d.historyMonthsUsed===1?"":"s"} of history` +
+    (d.method ? ` · ${d.method}` : "");
+
+  const app = document.getElementById("app");
+
+  if(!d.isForecastAvailable){
+    app.innerHTML = insufficientStateHTML(d.historyMonthsUsed);
+    return;
+  }
+
+  // Requirement 11 — a standing, unmissable label that these are estimates.
+  const banner = `
+    <div class="forecast-banner">
+      <span class="pill">Forecast</span>
+      <span>These are estimated figures for ${d.forecastPeriodLabel}, projected from past activity — not recorded amounts. Actual results can differ.</span>
+    </div>`;
+
+  const savingClass = d.expectedSaving == null ? "" : d.expectedSaving > 0 ? "positive" : d.expectedSaving < 0 ? "negative" : "";
+
+  const figure = (label, value, extraClass, note) => `
+    <div class="figure">
+      <div class="lbl">${label} <span class="est">est</span></div>
+      ${value == null
+        ? `<div class="val unavailable">Not available</div>`
+        : `<div class="val ${extraClass||""}">${money(value)}</div>`}
+      ${note ? `<div class="note">${note}</div>` : ""}
+    </div>`;
+
+  const figures = `
+    <div class="figures">
+      ${figure("Expected income", d.expectedIncome)}
+      ${figure("Expected expenses", d.expectedExpense)}
+      ${figure("Expected savings", d.expectedSaving, savingClass)}
+      ${figure("Expected closing balance", d.expectedClosingBalance, "",
+          d.expectedClosingBalance == null
+            ? "Needs a trusted opening balance"
+            : d.openingBalance != null ? `Opening ${money(d.openingBalance)}` : null)}
+    </div>`;
+
+  const confKey = String(d.confidence||"").toLowerCase();
+  const confidence = `
+    <div class="confidence-row">
+      <span class="conf-badge ${confKey}">${d.confidence} confidence</span>
+      <span>${d.confidenceNote || ""}</span>
+      ${d.confidenceIsDerived
+        ? `<span class="derived-tag">Worked out from the number of months returned — the API doesn't supply a confidence value.</span>`
+        : ""}
+    </div>`;
+
+  // Requirement 7 — only rendered when there is real history to compare against.
+  const comparison = d.hasComparison ? `
+    <section>
+      <div class="section-title"><span>Historical vs forecast</span><span>${d.frequency.toLowerCase()} income &amp; expenses</span></div>
+      <div class="compare-wrap">
+        <canvas id="compareCanvas" width="880" height="190"></canvas>
+        <div class="legend">
+          <span><i class="swatch actual"></i> Income (recorded)</span>
+          <span><i class="swatch expense"></i> Expenses (recorded)</span>
+          <span><i class="swatch forecast"></i> Forecast period (estimated)</span>
+        </div>
+        ${comparisonTable(d)}
+      </div>
+    </section>` : `
+    <section>
+      <div class="section-title"><span>Historical vs forecast</span></div>
+      <div class="notice sans" style="margin:0;">
+        This response doesn't include historical months, so there's nothing to compare the forecast against.
+        The implemented <code>POST /api/forecasting</code> contract does return them.
+      </div>
+    </section>`;
+
+  const ex = d.insight;
+  const insightBody = ex
+    ? `${[ex.summary, ex.expectedSaving, ex.expectedClosingBalance, ex.cashFlowTrend, ex.uncertainty].filter(Boolean).join(" ")}
+       ${ex.actionableObservation ? `<div class="obs">${ex.actionableObservation}</div>` : ""}`
+    : d.fallbackInsight;
+
+  const insight = `
+    <section>
+      <div class="section-title"><span>AI forecast insight</span></div>
+      <div class="insight-box">
+        <div class="tag">Explains the verified forecast above</div>
+        ${insightBody}
+      </div>
+      ${d.insightIsFallback
+        ? `<div class="insight-note">⚠ Rule-based fallback — neither endpoint returns an explanation field yet, so this is generated from the verified figures above and adds no new numbers.</div>`
+        : ""}
+      ${d.limitations.length
+        ? `<ul class="limitations">${d.limitations.map(l=>`<li>${l}</li>`).join("")}</ul>`
+        : ""}
+    </section>`;
+
+  app.innerHTML = banner + figures + confidence + comparison + insight;
+
+  if(d.hasComparison) drawComparison(d);
+}
+
+function comparisonTable(d){
+  const rows = [
+    ...d.historicalPeriods.map(p => ({...p, isForecast:false})),
+    ...d.expectedPeriods.map(p => ({...p, isForecast:true})),
+  ];
+  return `
+    <table class="compare">
+      <thead><tr>
+        <th>Period</th><th>Income</th><th>Expenses</th><th>Savings</th><th>Closing balance</th>
+      </tr></thead>
+      <tbody>
+        ${rows.map(r => `
+          <tr class="${r.isForecast ? "forecast-row" : ""}">
+            <td>${r.period}${r.isForecast ? `<span class="row-tag">forecast</span>` : ""}</td>
+            <td>${r.income==null?"—":money(r.income)}</td>
+            <td>${r.expense==null?"—":money(r.expense)}</td>
+            <td>${r.savings==null?"—":money(r.savings)}</td>
+            <td>${r.closingBalance==null?"—":money(r.closingBalance)}</td>
+          </tr>`).join("")}
+      </tbody>
+    </table>`;
+}
+
+function drawComparison(d){
+  const canvas = document.getElementById("compareCanvas");
+  if(!canvas) return;
+  const ctx = canvas.getContext("2d");
+  const w = canvas.width, h = canvas.height, padL = 34, padR = 20, padT = 16, padB = 30;
+  ctx.clearRect(0,0,w,h);
+
+  const all = [...d.historicalPeriods, ...d.expectedPeriods];
+  if(all.length < 2) return;
+  const histCount = d.historicalPeriods.length;
+  const max = Math.max(...all.flatMap(p => [p.income||0, p.expense||0])) * 1.16;
+  const stepX = (w - padL - padR) / (all.length - 1);
+  const yOf = v => h - padB - (v/max) * (h - padT - padB);
+  const xOf = i => padL + stepX * i;
+
+  // grid
+  ctx.strokeStyle = "#e3d9bd"; ctx.lineWidth = 1;
+  for(let i=0;i<=3;i++){
+    const y = padT + (h-padT-padB)/3*i;
+    ctx.beginPath(); ctx.moveTo(padL,y); ctx.lineTo(w-padR,y); ctx.stroke();
+  }
+
+  // Shade the forecast region so the estimated part is visually distinct (req. 11).
+  if(histCount >= 1 && d.expectedPeriods.length){
+    const boundary = xOf(histCount - 1);
+    ctx.fillStyle = "rgba(47,93,79,0.07)";
+    ctx.fillRect(boundary, padT, (w-padR) - boundary, h - padT - padB);
+    ctx.strokeStyle = "#a8bdb0"; ctx.setLineDash([4,3]);
+    ctx.beginPath(); ctx.moveTo(boundary, padT); ctx.lineTo(boundary, h-padB); ctx.stroke();
+    ctx.setLineDash([]);
+  }
+
+  // Draws the recorded run solid and the final forecast leg dashed.
+  const drawSeries = (key, color) => {
+    ctx.strokeStyle = color; ctx.lineWidth = 2.4;
+    ctx.beginPath();
+    for(let i=0;i<histCount;i++){
+      const x = xOf(i), y = yOf(all[i][key]||0);
+      i===0 ? ctx.moveTo(x,y) : ctx.lineTo(x,y);
+    }
+    ctx.stroke();
+
+    if(d.expectedPeriods.length && histCount>0){
+      ctx.setLineDash([5,4]); ctx.globalAlpha = 0.6;
+      ctx.beginPath();
+      ctx.moveTo(xOf(histCount-1), yOf(all[histCount-1][key]||0));
+      for(let i=histCount;i<all.length;i++) ctx.lineTo(xOf(i), yOf(all[i][key]||0));
+      ctx.stroke();
+      ctx.setLineDash([]); ctx.globalAlpha = 1;
+    }
+
+    all.forEach((p,i) => {
+      ctx.fillStyle = color; ctx.globalAlpha = i >= histCount ? 0.6 : 1;
+      ctx.beginPath(); ctx.arc(xOf(i), yOf(p[key]||0), 3, 0, Math.PI*2); ctx.fill();
+      ctx.globalAlpha = 1;
+    });
+  };
+  drawSeries("income", "#2f5d4f");
+  drawSeries("expense", "#8a3324");
+
+  ctx.fillStyle = "#6f6a58"; ctx.font = "10.5px Helvetica, Arial, sans-serif"; ctx.textAlign = "center";
+  all.forEach((p,i) => ctx.fillText(p.period.slice(5), xOf(i), h-9));
+}
+
+function insufficientStateHTML(months){
+  return `
+    <div class="state-box">
+      <div class="icon">◷</div>
+      <h2>Not enough history yet</h2>
+      <p class="sans">We need at least 3 months of income and expense history before estimating your cash flow${
+        months ? `, and there ${months===1?"is 1 month":`are ${months} months`} on record so far` : ""
+      }. Keep recording transactions and your forecast will appear here.</p>
+    </div>`;
+}
+
+function renderLoading(){
+  document.getElementById("periodLabel").textContent = "—";
+  document.getElementById("methodLabel").textContent = "Preparing your forecast…";
+  document.getElementById("app").innerHTML = `
+    <div class="sr-only" role="status" aria-live="polite">Loading your cash flow forecast</div>
+    <div class="skel skel-bar"></div>
+    <div class="skel-figures">
+      ${Array(4).fill(`<div class="skel-fig"><div class="skel l"></div><div class="skel v"></div></div>`).join("")}
+    </div>
+    <div class="skel" style="height:44px;margin-bottom:26px;"></div>
+    <div class="skel skel-chart"></div>`;
+}
+
+function renderState(state){
+  document.getElementById("periodLabel").textContent = "—";
+  document.getElementById("methodLabel").textContent = "—";
+  const boxes = {
+    insufficient: insufficientStateHTML(2),
+    error: `
+      <div class="state-box">
+        <div class="icon">⚠</div>
+        <h2>Couldn't load your forecast</h2>
+        <p class="sans">We couldn't reach the forecasting service just now. Please try again in a moment.</p>
+      </div>`,
+  };
+  document.getElementById("app").innerHTML = boxes[state] || boxes.error;
+}
+
+const STATES = {
+  normal:       () => renderForecast(SAMPLE_REAL),
+  spec:         () => renderForecast(SAMPLE_SPEC),
+  negative:     () => renderForecast(SAMPLE_NEGATIVE),
+  nobalance:    () => renderForecast(SAMPLE_NO_BALANCE),
+  loading:      () => renderLoading(),
+  insufficient: () => renderState("insufficient"),
+  error:        () => renderState("error"),
+};
+
+document.querySelectorAll(".dev-toggle button").forEach(btn => {
+  btn.onclick = () => {
+    document.querySelectorAll(".dev-toggle button").forEach(b => b.classList.remove("active"));
+    btn.classList.add("active");
+    STATES[btn.dataset.state]();
+  };
+});
+
+renderForecast(SAMPLE_REAL);
+</script>
+</body>
+</html>
