@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Recommendations — HisabDo AI</title>
+<style>
+  :root{
+    --ink:#22261f; --paper:#f6f1e4; --paper-line:#ded4b8;
+    --ledger-green:#2f5d4f; --ledger-green-deep:#1d3c33;
+    --high:#8a3324; --high-bg:#f7e6e0; --medium:#a9781f; --medium-bg:#f7edd8;
+    --low:#3d6b4a; --low-bg:#e6efe6; --muted:#6f6a58; --card:#fffdf6;
+  }
+  *{box-sizing:border-box;}
+  body{ margin:0; background:var(--paper); color:var(--ink); font-family:"Iowan Old Style","Palatino Linotype",Georgia,serif; -webkit-font-smoothing:antialiased; }
+  .sans{ font-family:"Helvetica Neue",Arial,sans-serif; }
+  .page{ max-width:480px; margin:0 auto; padding:28px 18px 60px; } /* mobile-first width */
+
+  .masthead{ display:flex; justify-content:space-between; align-items:baseline; border-bottom:2px solid var(--ink); padding-bottom:12px; margin-bottom:14px; }
+  .masthead h1{ font-size:20px; letter-spacing:0.02em; margin:0; font-weight:600; }
+
+  .live-panel{ background:var(--card); border:1px solid var(--paper-line); padding:10px 12px; margin-bottom:14px; font-family:"Helvetica Neue",Arial,sans-serif; font-size:11px; }
+  .live-panel .row{ display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-bottom:6px; }
+  .live-panel label{ color:var(--muted); }
+  .live-panel input{ padding:4px 7px; border:1px solid var(--paper-line); border-radius:3px; font-family:inherit; font-size:11px; flex:1; min-width:110px; }
+  .live-panel button{ font-family:inherit; font-size:11px; font-weight:600; padding:5px 12px; border:1px solid var(--ledger-green-deep); background:var(--ledger-green-deep); color:var(--paper); border-radius:3px; cursor:pointer; }
+  .live-panel button.secondary{ background:var(--card); color:var(--ink); border-color:var(--paper-line); }
+  .live-status{ color:var(--muted); }
+  .live-status.ok{ color:var(--ledger-green-deep); }
+  .live-status.error{ color:var(--high); }
+
+  .user-row{ display:flex; gap:6px; margin-bottom:16px; flex-wrap:wrap; }
+  .user-row button{ font-family:"Helvetica Neue",Arial,sans-serif; font-size:11px; padding:6px 10px; border:1px solid var(--paper-line); background:var(--card); border-radius:14px; cursor:pointer; color:var(--muted); }
+  .user-row button.active{ background:var(--ink); color:var(--paper); border-color:var(--ink); }
+
+  .summary-row{ display:flex; gap:8px; margin-bottom:16px; flex-wrap:wrap; font-family:"Helvetica Neue",Arial,sans-serif; }
+  .summary-chip{ padding:6px 12px; border-radius:16px; font-size:12px; font-weight:600; }
+  .summary-chip.total{ background:var(--ink); color:var(--paper); }
+  .summary-chip.high{ background:var(--high-bg); color:var(--high); }
+  .summary-chip.medium{ background:var(--medium-bg); color:var(--medium); }
+  .summary-chip.low{ background:var(--low-bg); color:var(--low); }
+
+  .rec-card{ background:var(--card); border:1px solid var(--paper-line); border-left-width:5px; border-radius:4px; padding:14px 16px; margin-bottom:12px; }
+  .rec-card.High{ border-left-color:var(--high); }
+  .rec-card.Medium{ border-left-color:var(--medium); }
+  .rec-card.Low{ border-left-color:var(--low); }
+
+  .rec-top{ display:flex; justify-content:space-between; align-items:flex-start; gap:10px; margin-bottom:8px; }
+  .rec-type{ font-size:15px; font-weight:600; line-height:1.3; }
+  .rec-badges{ display:flex; flex-direction:column; gap:4px; align-items:flex-end; flex-shrink:0; }
+  .badge{ font-family:"Helvetica Neue",Arial,sans-serif; font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:0.04em; padding:2px 8px; border-radius:9px; white-space:nowrap; }
+  .badge.priority-High{ background:var(--high-bg); color:var(--high); }
+  .badge.priority-Medium{ background:var(--medium-bg); color:var(--medium); }
+  .badge.priority-Low{ background:var(--low-bg); color:var(--low); }
+  .badge.severity{ background:#eee; color:#666; }
+
+  .rec-category{ font-family:"Helvetica Neue",Arial,sans-serif; font-size:10px; text-transform:uppercase; letter-spacing:0.05em; color:var(--muted); margin-bottom:6px; }
+  .rec-reason{ font-size:13.5px; line-height:1.5; margin-bottom:8px; }
+  .rec-figure{ font-family:"Helvetica Neue",Arial,sans-serif; font-size:11px; color:var(--ledger-green-deep); font-weight:600; margin-bottom:8px; }
+  .rec-action{ font-family:"Helvetica Neue",Arial,sans-serif; font-size:11px; color:var(--ledger-green-deep); background:#eef3ee; display:inline-block; padding:4px 10px; border-radius:4px; }
+
+  .limitations-box{ font-family:"Helvetica Neue",Arial,sans-serif; font-size:11px; color:var(--muted); font-style:italic; background:var(--card); border:1px dashed var(--paper-line); padding:10px 12px; margin-bottom:16px; border-radius:4px; }
+
+  .empty-state{ text-align:center; padding:50px 16px; border:1px dashed var(--paper-line); border-radius:6px; }
+  .empty-state .icon{ font-size:30px; margin-bottom:8px; }
+  .empty-state h2{ font-size:17px; margin-bottom:6px; }
+  .empty-state p{ font-family:"Helvetica Neue",Arial,sans-serif; color:var(--muted); font-size:13px; max-width:320px; margin:0 auto; }
+
+  .skeleton{ background:var(--card); border:1px solid var(--paper-line); border-radius:4px; padding:14px 16px; margin-bottom:12px; }
+  .skeleton .bar{ height:10px; background:#ece4cf; border-radius:3px; margin-bottom:8px; animation:pulse 1.2s infinite; }
+  .skeleton .bar.short{ width:40%; }
+  @keyframes pulse{ 0%,100%{ opacity:0.6; } 50%{ opacity:1; } }
+
+  .api-error-box{ border:1px solid #e0b3ad; background:#faeceb; color:#7a2c22; padding:14px 16px; font-family:"Helvetica Neue",Arial,sans-serif; font-size:12.5px; border-radius:6px; line-height:1.5; }
+  .api-error-box .title{ font-weight:700; margin-bottom:4px; }
+</style>
+</head>
+<body>
+
+<div class="page">
+
+  <div class="masthead">
+    <h1>Recommendations</h1>
+  </div>
+
+  <div class="live-panel">
+    <div class="row">
+      <label for="liveBaseUrl">Base URL</label>
+      <input id="liveBaseUrl" type="text" value="http://localhost:5000" spellcheck="false">
+    </div>
+    <div class="row">
+      <label for="liveUserId">User ID</label>
+      <input id="liveUserId" type="text" value="99999999-9999-9999-9999-999999999999" spellcheck="false">
+      <button id="btnFetchLive">Fetch Live</button>
+      <span id="liveStatus" class="live-status">Using sample data below</span>
+    </div>
+  </div>
+
+  <div class="user-row sans">
+    <button id="btnAtRisk" class="active" data-user="99999999-9999-9999-9999-999999999999">At-Risk user (10 recs)</button>
+    <button id="btnHealthy" data-user="aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa">Healthy user (empty)</button>
+    <button id="btnInsufficient" data-user="bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb">No data yet (empty)</button>
+  </div>
+
+  <div id="app"></div>
+
+</div>
+
+<script>
+const TYPE_LABELS = {
+  SpendingReduction: "Spending Reduction", BudgetAdjustment: "Budget Adjustment",
+  SavingImprovement: "Saving Improvement", CashFlowRisk: "Cash-Flow Risk",
+  UnusualSpendingReview: "Unusual Spending Review", RecurringExpenseReview: "Recurring Expense Review",
+  FinancialHealthImprovement: "Financial Health Improvement", CategorySpendingControl: "Category Spending Control",
+};
+
+function formatVerifiedFigure(rec) {
+  const parts = [];
+  if (rec.verifiedAmount != null) parts.push(`Rs ${Math.round(Math.abs(rec.verifiedAmount)).toLocaleString()}${rec.verifiedAmount < 0 ? " (negative)" : ""}`);
+  if (rec.verifiedPercentage != null) parts.push(`${rec.verifiedPercentage}%`);
+  return parts.length ? parts.join(" · ") : null;
+}
+
+function toRecommendationCard(rec) {
+  return {
+    type: rec.type, typeLabel: TYPE_LABELS[rec.type] || rec.type,
+    priority: rec.priority, severity: rec.severity, category: rec.category,
+    reason: rec.reason, action: rec.action, verifiedFigure: formatVerifiedFigure(rec),
+  };
+}
+
+function buildRecommendationsDisplay(apiResponse) {
+  const recommendations = (apiResponse.recommendations || []).map(toRecommendationCard);
+  return {
+    hasRecommendations: recommendations.length > 0, recommendations,
+    highCount: recommendations.filter(r => r.priority === "High").length,
+    mediumCount: recommendations.filter(r => r.priority === "Medium").length,
+    lowCount: recommendations.filter(r => r.priority === "Low").length,
+    limitations: apiResponse.limitations || [],
+    hasLimitations: (apiResponse.limitations || []).length > 0,
+    isInsufficientData: recommendations.length === 0 && (apiResponse.limitations || []).length > 0,
+  };
+}
+
+// ---------------------------------------------------------------------
+// Real, captured API responses (from a live dotnet run server)
+// ---------------------------------------------------------------------
+const RESPONSES = {
+  "99999999-9999-9999-9999-999999999999": {"userId":"99999999-9999-9999-9999-999999999999","recommendations":[{"type":"CashFlowRisk","priority":"High","severity":"High","category":"Cash Flow","reason":"Verified forecasted saving is -5000.","action":"Review expected expenses and upcoming commitments before the forecast period.","verifiedAmount":-5000,"verifiedPercentage":null},{"type":"UnusualSpendingReview","priority":"High","severity":"High","category":"Food","reason":"Verified spending engine marked Food as unusual.","action":"Review the recorded transactions in this category.","verifiedAmount":17940,"verifiedPercentage":28},{"type":"UnusualSpendingReview","priority":"High","severity":"High","category":"Food","reason":"Verified anomaly: Unusual Amount (High).","action":"Review the transaction details and confirm whether the spending is expected.","verifiedAmount":9000,"verifiedPercentage":null},{"type":"FinancialHealthImprovement","priority":"High","severity":"High","category":"Overall","reason":"Verified Financial Health Score is 55/100.","action":"Review the verified weak financial factors and address the highest-impact area.","verifiedAmount":null,"verifiedPercentage":55},{"type":"SpendingReduction","priority":"High","severity":"High","category":"Overall Expenses","reason":"Verified expense growth is 25%, meeting the 20% threshold.","action":"Review categories with the largest verified increases.","verifiedAmount":null,"verifiedPercentage":25},{"type":"SavingImprovement","priority":"High","severity":"High","category":"Savings","reason":"Verified saving rate is 6%, below the MVP threshold of 10%.","action":"Review high-spending categories and identify a practical saving opportunity.","verifiedAmount":null,"verifiedPercentage":6},{"type":"CategorySpendingControl","priority":"Medium","severity":"Medium","category":"Food","reason":"Verified spending in Food increased by 28%.","action":"Review the transactions driving this increase and consider spending controls.","verifiedAmount":17940,"verifiedPercentage":28},{"type":"BudgetAdjustment","priority":"Medium","severity":"Medium","category":"Food","reason":"Verified budget utilization for Food is 138%.","action":"Review spending in this category and compare it with the existing budget.","verifiedAmount":17940,"verifiedPercentage":138},{"type":"RecurringExpenseReview","priority":"Medium","severity":"Medium","category":"Subscriptions","reason":"Verified pattern engine identified a recurring-expense candidate in Subscriptions.","action":"Review whether this recurring expense is still necessary and within budget.","verifiedAmount":3200,"verifiedPercentage":null},{"type":"BudgetAdjustment","priority":"Low","severity":"Low","category":"Transport","reason":"Verified budget engine recommends 3500 for Transport. Historical average based recommendation.","action":"Review the recommended budget against your current financial plan.","verifiedAmount":3500,"verifiedPercentage":null}],"limitations":[]},
+  "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa": {"userId":"aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa","recommendations":[],"limitations":[]},
+  "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb": {"userId":"bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb","recommendations":[],"limitations":["No verified financial health result is available for this user yet.","No verified spending pattern history is available for this user yet.","No verified budget or forecast data is available for this user yet."]},
+};
+
+function renderLoading() {
+  document.getElementById("app").innerHTML = `
+    <div class="skeleton"><div class="bar short"></div><div class="bar"></div><div class="bar" style="width:70%"></div></div>
+    <div class="skeleton"><div class="bar short"></div><div class="bar"></div><div class="bar" style="width:60%"></div></div>`;
+}
+
+function renderError(errorState) {
+  document.getElementById("app").innerHTML = `
+    <div class="api-error-box"><div class="title">${errorState.title}</div><div>${errorState.message}</div></div>`;
+}
+
+function render(apiResponse) {
+  const data = buildRecommendationsDisplay(apiResponse);
+  const app = document.getElementById("app");
+
+  if (!data.hasRecommendations) {
+    if (data.isInsufficientData) {
+      app.innerHTML = `
+        <div class="empty-state">
+          <div class="icon">⏳</div>
+          <h2>Not enough data yet</h2>
+          <p class="sans">${data.limitations.join(" ")}</p>
+        </div>`;
+    } else {
+      app.innerHTML = `
+        <div class="empty-state">
+          <div class="icon">✓</div>
+          <h2>Nothing to flag right now</h2>
+          <p class="sans">Your finances are within the verified healthy ranges — no recommendations for this period.</p>
+        </div>`;
+    }
+    return;
+  }
+
+  const chips = `
+    <div class="summary-row">
+      <div class="summary-chip total">${data.recommendations.length} recommendation${data.recommendations.length !== 1 ? "s" : ""}</div>
+      ${data.highCount ? `<div class="summary-chip high">${data.highCount} High</div>` : ""}
+      ${data.mediumCount ? `<div class="summary-chip medium">${data.mediumCount} Medium</div>` : ""}
+      ${data.lowCount ? `<div class="summary-chip low">${data.lowCount} Low</div>` : ""}
+    </div>`;
+
+  const limitationsBox = data.hasLimitations ? `<div class="limitations-box">${data.limitations.join(" ")}</div>` : "";
+
+  const cards = data.recommendations.map(r => `
+    <div class="rec-card ${r.priority}">
+      <div class="rec-top">
+        <div class="rec-type">${r.typeLabel}</div>
+        <div class="rec-badges">
+          <span class="badge priority-${r.priority}">${r.priority}</span>
+          <span class="badge severity">${r.severity} severity</span>
+        </div>
+      </div>
+      <div class="rec-category">${r.category}</div>
+      <div class="rec-reason">${r.reason}</div>
+      ${r.verifiedFigure ? `<div class="rec-figure">${r.verifiedFigure}</div>` : ""}
+      <div class="rec-action">${r.action}</div>
+    </div>`).join("");
+
+  app.innerHTML = chips + limitationsBox + cards;
+}
+
+function setLiveStatus(text, kind) {
+  const el = document.getElementById("liveStatus");
+  el.textContent = text;
+  el.className = "live-status" + (kind ? " " + kind : "");
+}
+
+function setActiveUserButton(userId) {
+  const map = { "99999999-9999-9999-9999-999999999999": "btnAtRisk", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa": "btnHealthy", "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb": "btnInsufficient" };
+  ["btnAtRisk", "btnHealthy", "btnInsufficient"].forEach(id => document.getElementById(id).classList.toggle("active", id === map[userId]));
+}
+
+// Sample-data buttons — instant, no network needed.
+["btnAtRisk", "btnHealthy", "btnInsufficient"].forEach(id => {
+  document.getElementById(id).addEventListener("click", () => {
+    const userId = document.getElementById(id).dataset.user;
+    render(RESPONSES[userId]);
+    setActiveUserButton(userId);
+    document.getElementById("liveUserId").value = userId;
+    setLiveStatus("Using sample data below");
+  });
+});
+
+// Live-fetch panel
+async function fetchRecommendationsLive(userId, { baseUrl }) {
+  const url = `${baseUrl}/api/ai/recommendations/${encodeURIComponent(userId)}`;
+  let response;
+  try {
+    response = await fetch(url, { headers: { "X-Demo-User": userId } });
+  } catch (err) {
+    const e = new Error(`Network/connection error: ${err.message}`);
+    e.statusCode = 0;
+    throw e;
+  }
+  if (response.ok) return response.json();
+  let detail;
+  try { const body = await response.json(); detail = body.error || JSON.stringify(body); }
+  catch { detail = await response.text(); }
+  const e = new Error(detail);
+  e.statusCode = response.status;
+  throw e;
+}
+
+function apiErrorState(error) {
+  if (error.statusCode === 401) return { title: "Can't load recommendations", message: "The User ID above doesn't match the backend's X-Demo-User check." };
+  if (error.statusCode === 404) return { title: "No data on file", message: error.message || "No verified data is available for this user yet." };
+  if (error.statusCode === 0) return { title: "Couldn't reach the backend", message: `${error.message} — is it running at the Base URL above? See HOW_TO_RUN_day16.md.` };
+  return { title: "Something went wrong", message: error.message || "Please try again." };
+}
+
+document.getElementById("btnFetchLive").addEventListener("click", async () => {
+  const baseUrl = document.getElementById("liveBaseUrl").value.trim().replace(/\/$/, "");
+  const userId = document.getElementById("liveUserId").value.trim();
+  const btn = document.getElementById("btnFetchLive");
+
+  btn.disabled = true;
+  setLiveStatus("Fetching…");
+  renderLoading();
+
+  try {
+    const apiResponse = await fetchRecommendationsLive(userId, { baseUrl });
+    render(apiResponse);
+    setLiveStatus(`Loaded live from ${baseUrl}`, "ok");
+  } catch (err) {
+    const errorState = apiErrorState(err);
+    renderError(errorState);
+    setLiveStatus(errorState.title, "error");
+  } finally {
+    btn.disabled = false;
+  }
+});
+
+render(RESPONSES["99999999-9999-9999-9999-999999999999"]);
+</script>
+
+</body>
+</html>
