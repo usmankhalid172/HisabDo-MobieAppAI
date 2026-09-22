@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>HisabDo AI Dashboard</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 24px; max-width: 1200px; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit,minmax(280px,1fr)); gap: 16px; }
+    .card { border: 1px solid #ddd; border-radius: 10px; padding: 16px; }
+    pre { white-space: pre-wrap; word-break: break-word; }
+    button { padding: 9px 14px; cursor: pointer; }
+    input { width: 70%; padding: 9px; }
+    [hidden] { display:none !important; }
+  </style>
+</head>
+<body>
+  <h1>HisabDo AI Dashboard</h1>
+
+  <div id="loading">Loading verified financial data...</div>
+  <div id="error" hidden></div>
+  <button id="retry">Retry</button>
+
+  <main id="dashboard" hidden>
+    <div class="grid">
+      <section class="card">
+        <h2>Financial Health</h2>
+        <strong id="healthScore">-</strong>
+        <p id="healthStatus">-</p>
+      </section>
+
+      <section class="card">
+        <h2>Spending Patterns</h2>
+        <pre id="patterns"></pre>
+      </section>
+
+      <section class="card">
+        <h2>Anomalies</h2>
+        <pre id="anomalies"></pre>
+      </section>
+
+      <section class="card">
+        <h2>Cash-Flow Forecast</h2>
+        <pre id="forecasts"></pre>
+      </section>
+
+      <section class="card">
+        <h2>Budget Recommendations</h2>
+        <pre id="budgets"></pre>
+      </section>
+
+      <section class="card">
+        <h2>AI Recommendations</h2>
+        <pre id="recommendations"></pre>
+      </section>
+    </div>
+
+    <section class="card" style="margin-top:16px">
+      <h2>Ask HisabDo AI</h2>
+      <input id="question" placeholder="e.g. Where did I spend the most this month?">
+      <button id="askButton">Ask</button>
+      <pre id="askResult"></pre>
+    </section>
+  </main>
+
+  <script src="/js/hisabdo-ai-dashboard.js"></script>
+</body>
+</html>
