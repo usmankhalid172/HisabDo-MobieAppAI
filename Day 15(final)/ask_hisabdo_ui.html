@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ask HisabDo — HisabDo AI</title>
+<style>
+  :root{
+    --ink:#22261f; --paper:#f6f1e4; --paper-line:#ded4b8;
+    --ledger-green:#2f5d4f; --ledger-green-deep:#1d3c33;
+    --over:#8a3324; --over-bg:#f7e6e0; --warn:#a9781f; --warn-bg:#f7edd8;
+    --muted:#6f6a58; --card:#fffdf6; --bubble-user:#e4ded0;
+  }
+  *{box-sizing:border-box;}
+  body{ margin:0; background:var(--paper); color:var(--ink); font-family:"Iowan Old Style","Palatino Linotype",Georgia,serif; -webkit-font-smoothing:antialiased; }
+  .sans{ font-family:"Helvetica Neue",Arial,sans-serif; }
+  .page{ max-width:760px; margin:0 auto; padding:32px 24px 40px; display:flex; flex-direction:column; min-height:100vh; }
+
+  .masthead{ display:flex; justify-content:space-between; align-items:baseline; border-bottom:2px solid var(--ink); padding-bottom:14px; margin-bottom:16px; }
+  .masthead h1{ font-size:22px; letter-spacing:0.02em; margin:0; font-weight:600; }
+  .masthead .sub{ font-family:"Helvetica Neue",Arial,sans-serif; font-size:12px; color:var(--muted); }
+
+  .live-panel{ background:var(--card); border:1px solid var(--paper-line); padding:12px 16px; margin-bottom:16px; font-family:"Helvetica Neue",Arial,sans-serif; font-size:12px; }
+  .live-panel .row{ display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+  .live-panel label{ color:var(--muted); }
+  .live-panel input{ padding:5px 8px; border:1px solid var(--paper-line); border-radius:3px; font-family:inherit; font-size:12px; }
+  .live-panel input#liveBaseUrl{ width:210px; }
+  .live-panel input#liveUserId{ width:270px; }
+  .live-status{ color:var(--muted); }
+  .live-status.ok{ color:var(--ledger-green-deep); }
+  .live-status.error{ color:var(--over); }
+
+  .sample-row{ font-family:"Helvetica Neue",Arial,sans-serif; font-size:12px; margin-bottom:16px; display:flex; flex-wrap:wrap; gap:6px; }
+  .sample-row button{ font-family:inherit; font-size:11px; padding:5px 10px; border:1px solid var(--paper-line); background:var(--card); border-radius:12px; cursor:pointer; color:var(--muted); }
+  .sample-row button:hover{ border-color:var(--ink); color:var(--ink); }
+
+  .thread{ flex:1; overflow-y:auto; margin-bottom:16px; }
+  .msg{ margin-bottom:18px; max-width:88%; }
+  .msg.user{ margin-left:auto; }
+  .msg .bubble{ padding:10px 14px; border-radius:10px; font-size:14px; line-height:1.5; }
+  .msg.user .bubble{ background:var(--bubble-user); border-radius:10px 10px 2px 10px; }
+  .msg.assistant .bubble{ background:var(--card); border:1px solid var(--paper-line); border-radius:10px 10px 10px 2px; }
+
+  .meta-row{ font-family:"Helvetica Neue",Arial,sans-serif; font-size:10px; color:var(--muted); margin:5px 2px 0; display:flex; gap:8px; align-items:center; }
+  .category-pill{ font-weight:700; text-transform:uppercase; letter-spacing:0.04em; padding:2px 8px; border-radius:10px; background:var(--warn-bg); color:var(--warn); }
+  .category-pill.unsupported, .category-pill.ambiguous{ background:#eee; color:#777; }
+  .category-pill.missing{ background:var(--over-bg); color:var(--over); }
+  .category-pill.verified{ background:#e6efe6; color:var(--ledger-green-deep); }
+
+  .verified-box{ margin-top:8px; border-top:1px dashed var(--paper-line); padding-top:8px; }
+  .verified-title{ font-family:"Helvetica Neue",Arial,sans-serif; font-size:10px; text-transform:uppercase; letter-spacing:0.06em; color:var(--muted); margin-bottom:5px; }
+  .verified-grid{ display:flex; flex-wrap:wrap; gap:6px; }
+  .verified-chip{ font-family:"Helvetica Neue",Arial,sans-serif; font-size:11px; background:var(--paper); border:1px solid var(--paper-line); border-radius:4px; padding:3px 8px; }
+  .verified-chip b{ color:var(--ledger-green-deep); }
+
+  .limitations{ margin-top:8px; font-family:"Helvetica Neue",Arial,sans-serif; font-size:11px; color:var(--muted); font-style:italic; }
+
+  .typing{ display:inline-flex; gap:3px; padding:2px 0; }
+  .typing span{ width:5px; height:5px; border-radius:50%; background:var(--muted); animation:bounce 1.1s infinite; }
+  .typing span:nth-child(2){ animation-delay:0.15s; } .typing span:nth-child(3){ animation-delay:0.3s; }
+  @keyframes bounce{ 0%,60%,100%{ transform:translateY(0); opacity:0.5; } 30%{ transform:translateY(-3px); opacity:1; } }
+
+  .composer{ display:flex; gap:8px; border-top:2px solid var(--ink); padding-top:14px; }
+  .composer input{ flex:1; padding:11px 14px; border:1px solid var(--paper-line); border-radius:20px; font-family:"Helvetica Neue",Arial,sans-serif; font-size:14px; background:var(--card); }
+  .composer button{ font-family:"Helvetica Neue",Arial,sans-serif; font-weight:600; font-size:13px; padding:0 20px; border:none; border-radius:20px; background:var(--ledger-green-deep); color:var(--paper); cursor:pointer; }
+  .composer button:disabled{ opacity:0.5; cursor:default; }
+
+  .api-error-box{ border:1px solid #e0b3ad; background:#faeceb; color:#7a2c22; padding:10px 14px; font-family:"Helvetica Neue",Arial,sans-serif; font-size:12px; border-radius:8px; }
+</style>
+</head>
+<body>
+
+<div class="page">
+
+  <div class="masthead">
+    <h1>Ask HisabDo</h1>
+    <div class="sub">AI answers grounded only in your verified HisabDo data</div>
+  </div>
+
+  <div class="live-panel">
+    <div class="row">
+      <label for="liveBaseUrl">Base URL</label>
+      <input id="liveBaseUrl" type="text" value="http://localhost:5000" spellcheck="false">
+      <label for="liveUserId">User ID</label>
+      <input id="liveUserId" type="text" value="88888888-8888-8888-8888-888888888888" spellcheck="false">
+      <span id="liveStatus" class="live-status">Not connected yet — ask a question below to try it.</span>
+    </div>
+  </div>
+
+  <div class="sample-row sans" id="sampleRow">
+    <button data-q="How much did I spend last month?">💰 spend last month?</button>
+    <button data-q="Which category did I spend the most on?">📊 top category?</button>
+    <button data-q="Am I over my food budget?">🍽 over food budget?</button>
+    <button data-q="What is my financial health score?">❤️ health score?</button>
+    <button data-q="Did I have any unusual expenses?">⚠️ unusual expenses?</button>
+    <button data-q="How much will I spend next month?">🔮 spend next month?</button>
+    <button data-q="What budget do you recommend for food?">🎯 recommend food budget?</button>
+    <button data-q="What is my shopping budget utilization?">❓ shopping budget? (missing data)</button>
+    <button data-q="Tell me something about my finances.">🤷 tell me about my finances</button>
+    <button data-q="What is today's weather?">☀️ today's weather? (unsupported)</button>
+  </div>
+
+  <div class="thread" id="thread"></div>
+
+  <div class="composer">
+    <input id="questionInput" type="text" placeholder="Ask about your income, spending, budget, health, anomalies, forecast…" autocomplete="off">
+    <button id="sendBtn">Ask</button>
+  </div>
+
+</div>
+
+<script>
+async function askHisabDo(userId, question, { baseUrl, demoUserHeader }) {
+  const url = `${baseUrl}/api/ai/ask-hisabdo/${encodeURIComponent(userId)}`;
+  const headers = { "Content-Type": "application/json" };
+  if (demoUserHeader) headers["X-Demo-User"] = demoUserHeader;
+  let response;
+  try {
+    response = await fetch(url, { method: "POST", headers, body: JSON.stringify({ question }) });
+  } catch (err) {
+    const e = new Error(`Network/connection error: ${err.message}`);
+    e.statusCode = 0;
+    throw e;
+  }
+  if (response.ok) return response.json();
+  let detail;
+  try { const body = await response.json(); detail = body.error || JSON.stringify(body); }
+  catch { detail = await response.text(); }
+  const e = new Error(detail);
+  e.statusCode = response.status;
+  throw e;
+}
+
+function apiErrorState(error) {
+  if (error.statusCode === 400) return { title: "Check your question", message: error.message || "That request wasn't valid." };
+  if (error.statusCode === 401) return { title: "Can't reach Ask HisabDo", message: "The User ID above doesn't match the backend's X-Demo-User check — make sure both use the same GUID." };
+  if (error.statusCode === 0) return { title: "Couldn't reach the backend", message: `${error.message} — is it running at the Base URL above? See HOW_TO_RUN_day15.md.` };
+  return { title: "Something went wrong", message: error.message || "Please try again." };
+}
+
+function buildAnswerDisplay(apiResponse) {
+  return {
+    category: apiResponse.category,
+    confidencePercent: Math.round(apiResponse.confidence * 100),
+    answer: apiResponse.answer,
+    verifiedValues: apiResponse.verifiedValues || [],
+    hasVerifiedValues: (apiResponse.verifiedValues || []).length > 0,
+    limitations: apiResponse.limitations || [],
+    isVerified: apiResponse.isVerified,
+    isUnsupported: apiResponse.isUnsupported,
+    needsClarification: apiResponse.needsClarification,
+    isMissingData: !apiResponse.isVerified && !apiResponse.isUnsupported && !apiResponse.needsClarification,
+  };
+}
+
+function el(html) {
+  const div = document.createElement("div");
+  div.innerHTML = html.trim();
+  return div.firstChild;
+}
+
+function appendUserMessage(question) {
+  const thread = document.getElementById("thread");
+  thread.appendChild(el(`<div class="msg user"><div class="bubble">${escapeHtml(question)}</div></div>`));
+  thread.scrollTop = thread.scrollHeight;
+}
+
+function appendLoadingMessage() {
+  const thread = document.getElementById("thread");
+  const node = el(`<div class="msg assistant" id="loadingMsg"><div class="bubble"><span class="typing"><span></span><span></span><span></span></span></div></div>`);
+  thread.appendChild(node);
+  thread.scrollTop = thread.scrollHeight;
+  return node;
+}
+
+function pillClass(data) {
+  if (data.isUnsupported) return "unsupported";
+  if (data.needsClarification) return "ambiguous";
+  if (data.isMissingData) return "missing";
+  return "verified";
+}
+
+function appendAssistantMessage(data) {
+  const thread = document.getElementById("thread");
+  const verifiedBox = data.hasVerifiedValues ? `
+    <div class="verified-box">
+      <div class="verified-title">Relevant verified values</div>
+      <div class="verified-grid">${data.verifiedValues.map(v => `<div class="verified-chip">${v.label}: <b>${v.value}</b></div>`).join("")}</div>
+    </div>` : "";
+  const limitationsBox = data.limitations.length ? `<div class="limitations">${data.limitations.join(" ")}</div>` : "";
+
+  const node = el(`
+    <div class="msg assistant">
+      <div class="bubble">${escapeHtml(data.answer)}${verifiedBox}${limitationsBox}</div>
+      <div class="meta-row">
+        <span class="category-pill ${pillClass(data)}">${data.category}</span>
+        ${data.isVerified ? `<span>Confidence: ${data.confidencePercent}%</span>` : ""}
+      </div>
+    </div>`);
+  thread.appendChild(node);
+  thread.scrollTop = thread.scrollHeight;
+}
+
+function appendErrorMessage(errorState) {
+  const thread = document.getElementById("thread");
+  thread.appendChild(el(`<div class="msg assistant"><div class="api-error-box"><b>${errorState.title}</b><br>${errorState.message}</div></div>`));
+  thread.scrollTop = thread.scrollHeight;
+}
+
+function escapeHtml(s) {
+  const d = document.createElement("div");
+  d.textContent = s;
+  return d.innerHTML;
+}
+
+function setLiveStatus(text, kind) {
+  const el = document.getElementById("liveStatus");
+  el.textContent = text;
+  el.className = "live-status" + (kind ? " " + kind : "");
+}
+
+async function sendQuestion(question) {
+  if (!question || !question.trim()) return;
+  const sendBtn = document.getElementById("sendBtn");
+  const input = document.getElementById("questionInput");
+  const baseUrl = document.getElementById("liveBaseUrl").value.trim().replace(/\/$/, "");
+  const userId = document.getElementById("liveUserId").value.trim();
+
+  appendUserMessage(question);
+  input.value = "";
+  sendBtn.disabled = true;
+  const loadingNode = appendLoadingMessage();
+  setLiveStatus("Asking…");
+
+  try {
+    const apiResponse = await askHisabDo(userId, question, { baseUrl, demoUserHeader: userId });
+    loadingNode.remove();
+    appendAssistantMessage(buildAnswerDisplay(apiResponse));
+    setLiveStatus(`Connected to ${baseUrl}`, "ok");
+  } catch (err) {
+    loadingNode.remove();
+    const errorState = apiErrorState(err);
+    appendErrorMessage(errorState);
+    setLiveStatus(errorState.title, "error");
+  } finally {
+    sendBtn.disabled = false;
+    input.focus();
+  }
+}
+
+document.getElementById("sendBtn").onclick = () => sendQuestion(document.getElementById("questionInput").value);
+document.getElementById("questionInput").addEventListener("keydown", (e) => { if (e.key === "Enter") sendQuestion(e.target.value); });
+document.getElementById("sampleRow").addEventListener("click", (e) => {
+  const btn = e.target.closest("button[data-q]");
+  if (btn) sendQuestion(btn.dataset.q);
+});
+</script>
+
+</body>
+</html>
