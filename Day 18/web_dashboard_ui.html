@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HisabDo AI Dashboard</title>
+<style>
+  :root{
+    --ink:#22261f; --paper:#f6f1e4; --paper-line:#ded4b8;
+    --ledger-green:#2f5d4f; --ledger-green-deep:#1d3c33;
+    --high:#8a3324; --high-bg:#f7e6e0; --medium:#a9781f; --medium-bg:#f7edd8;
+    --low:#3d6b4a; --low-bg:#e6efe6; --muted:#6f6a58; --card:#fffdf6;
+  }
+  *{box-sizing:border-box;}
+  body{ margin:0; background:var(--paper); color:var(--ink); font-family:"Iowan Old Style","Palatino Linotype",Georgia,serif; -webkit-font-smoothing:antialiased; }
+  .sans{ font-family:"Helvetica Neue",Arial,sans-serif; }
+  .page{ max-width:1080px; margin:0 auto; padding:28px 20px 60px; }
+
+  .masthead{ display:flex; justify-content:space-between; align-items:baseline; border-bottom:2px solid var(--ink); padding-bottom:14px; margin-bottom:6px; flex-wrap:wrap; gap:8px; }
+  .masthead h1{ font-size:24px; letter-spacing:0.02em; margin:0; font-weight:600; }
+  .masthead .sub{ font-family:"Helvetica Neue",Arial,sans-serif; font-size:12px; color:var(--muted); }
+
+  .live-panel{ background:var(--card); border:1px solid var(--paper-line); padding:10px 14px; margin:14px 0; font-family:"Helvetica Neue",Arial,sans-serif; font-size:11.5px; }
+  .live-panel .row{ display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+  .live-panel label{ color:var(--muted); }
+  .live-panel input{ padding:5px 8px; border:1px solid var(--paper-line); border-radius:3px; font-family:inherit; font-size:11.5px; }
+  .live-panel input#liveBaseUrl{ width:190px; }
+  .live-panel input#liveUserId{ width:260px; }
+  .live-panel button{ font-family:inherit; font-size:11.5px; font-weight:600; padding:5px 12px; border:1px solid var(--ledger-green-deep); background:var(--ledger-green-deep); color:var(--paper); border-radius:3px; cursor:pointer; }
+  .user-chip{ font-family:inherit; font-size:11px; padding:4px 9px; border:1px solid var(--paper-line); background:var(--paper); border-radius:12px; cursor:pointer; color:var(--muted); }
+  .user-chip.active{ background:var(--ink); color:var(--paper); border-color:var(--ink); }
+  .live-status{ color:var(--muted); }
+  .live-status.ok{ color:var(--ledger-green-deep); }
+  .live-status.error{ color:var(--high); }
+
+  .grid{ display:grid; grid-template-columns:repeat(2, 1fr); gap:16px; margin-top:16px; }
+  @media (max-width:760px){ .grid{ grid-template-columns:1fr; } .page{ padding:20px 14px 50px; } .masthead h1{ font-size:20px; } }
+
+  .dash-card{ background:var(--card); border:1px solid var(--paper-line); border-radius:6px; padding:16px 18px; min-width:0; }
+  .dash-card.full{ grid-column:1 / -1; }
+  .card-title{ font-family:"Helvetica Neue",Arial,sans-serif; font-size:12px; text-transform:uppercase; letter-spacing:0.07em; color:var(--muted); margin-bottom:10px; display:flex; justify-content:space-between; align-items:center; }
+
+  .health-score{ display:flex; align-items:baseline; gap:10px; margin-bottom:8px; }
+  .health-score .num{ font-size:38px; font-weight:700; line-height:1; }
+  .health-score .cls{ font-family:"Helvetica Neue",Arial,sans-serif; font-size:13px; font-weight:700; padding:3px 10px; border-radius:12px; background:var(--low-bg); color:var(--low); }
+  .health-score .cls.Needs{ background:var(--medium-bg); color:var(--medium); }
+  .health-explain{ font-size:13px; line-height:1.5; color:var(--ink); }
+  .factor-row{ display:flex; justify-content:space-between; font-family:"Helvetica Neue",Arial,sans-serif; font-size:11px; color:var(--muted); padding:3px 0; border-top:1px dashed var(--paper-line); margin-top:8px; }
+
+  .pattern-row{ display:flex; justify-content:space-between; align-items:center; padding:7px 0; border-bottom:1px solid var(--paper-line); font-family:"Helvetica Neue",Arial,sans-serif; font-size:13px; }
+  .pattern-row:last-child{ border-bottom:none; }
+  .trend-arrow{ font-weight:700; margin-right:4px; }
+  .trend-arrow.Up{ color:var(--high); } .trend-arrow.Down{ color:var(--low); } .trend-arrow.Flat{ color:var(--muted); }
+
+  .anomaly-item{ border-left:3px solid var(--high); background:var(--high-bg); padding:8px 10px; margin-bottom:8px; border-radius:3px; font-family:"Helvetica Neue",Arial,sans-serif; font-size:12.5px; }
+  .anomaly-item .sev{ font-weight:700; text-transform:uppercase; font-size:10px; color:var(--high); }
+
+  .cf-row{ display:flex; justify-content:space-between; font-family:"Helvetica Neue",Arial,sans-serif; font-size:13px; padding:5px 0; }
+  .cf-row b{ font-variant-numeric:tabular-nums; }
+  .cf-note{ font-family:"Helvetica Neue",Arial,sans-serif; font-size:11px; color:var(--muted); margin-top:6px; font-style:italic; }
+
+  .budget-row{ font-family:"Helvetica Neue",Arial,sans-serif; font-size:12.5px; padding:7px 0; border-bottom:1px solid var(--paper-line); }
+  .budget-row:last-child{ border-bottom:none; }
+  .budget-row .cat{ font-weight:700; }
+
+  .rec-card{ background:var(--paper); border:1px solid var(--paper-line); border-left-width:4px; border-radius:4px; padding:10px 12px; margin-bottom:8px; cursor:pointer; font-family:"Helvetica Neue",Arial,sans-serif; }
+  .rec-card:hover{ border-color:var(--ink); }
+  .rec-card.High{ border-left-color:var(--high); } .rec-card.Medium{ border-left-color:var(--medium); } .rec-card.Low{ border-left-color:var(--low); }
+  .rec-card .top{ display:flex; justify-content:space-between; align-items:center; gap:8px; }
+  .rec-card .type{ font-size:13px; font-weight:600; }
+  .badge{ font-size:9px; font-weight:700; text-transform:uppercase; padding:2px 7px; border-radius:8px; white-space:nowrap; }
+  .badge.High{ background:var(--high-bg); color:var(--high); } .badge.Medium{ background:var(--medium-bg); color:var(--medium); } .badge.Low{ background:var(--low-bg); color:var(--low); }
+
+  .empty-mini{ font-family:"Helvetica Neue",Arial,sans-serif; font-size:12px; color:var(--muted); padding:10px 0; }
+  .skeleton-line{ height:10px; background:#ece4cf; border-radius:3px; margin-bottom:8px; animation:pulse 1.2s infinite; }
+  @keyframes pulse{ 0%,100%{ opacity:0.6; } 50%{ opacity:1; } }
+
+  .empty-state, .error-state{ text-align:center; padding:60px 20px; border:1px dashed var(--paper-line); border-radius:6px; margin-top:16px; }
+  .empty-state h2, .error-state h2{ font-size:19px; margin-bottom:8px; }
+  .empty-state p, .error-state p{ font-family:"Helvetica Neue",Arial,sans-serif; color:var(--muted); font-size:13.5px; max-width:400px; margin:0 auto 14px; }
+  .retry-btn{ font-family:"Helvetica Neue",Arial,sans-serif; font-weight:600; font-size:13px; padding:8px 18px; border:1px solid var(--ledger-green-deep); background:var(--ledger-green-deep); color:var(--paper); border-radius:20px; cursor:pointer; }
+
+  .modal-overlay{ position:fixed; inset:0; background:rgba(34,38,31,0.5); display:flex; align-items:center; justify-content:center; padding:20px; z-index:50; }
+  .modal-box{ background:var(--paper); border-radius:8px; max-width:480px; width:100%; max-height:85vh; overflow-y:auto; padding:22px 24px; }
+  .modal-box h2{ font-size:18px; margin:0 0 4px; }
+  .modal-close{ float:right; font-family:"Helvetica Neue",Arial,sans-serif; font-size:13px; background:none; border:none; color:var(--muted); cursor:pointer; }
+  .detail-row{ margin-bottom:12px; }
+  .detail-label{ font-family:"Helvetica Neue",Arial,sans-serif; font-size:10.5px; text-transform:uppercase; letter-spacing:0.06em; color:var(--muted); margin-bottom:3px; }
+  .detail-value{ font-size:14px; line-height:1.5; }
+
+  .ask-composer{ display:flex; gap:8px; }
+  .ask-composer input{ flex:1; padding:10px 14px; border:1px solid var(--paper-line); border-radius:20px; font-family:"Helvetica Neue",Arial,sans-serif; font-size:13.5px; background:var(--paper); }
+  .ask-composer button{ font-family:"Helvetica Neue",Arial,sans-serif; font-weight:600; font-size:12.5px; padding:0 18px; border:none; border-radius:20px; background:var(--ledger-green-deep); color:var(--paper); cursor:pointer; }
+  .ask-answer{ margin-top:14px; padding:12px 14px; background:var(--paper); border:1px solid var(--paper-line); border-radius:6px; font-size:13.5px; line-height:1.55; }
+  .ask-answer .intent-tag{ font-family:"Helvetica Neue",Arial,sans-serif; font-size:9.5px; text-transform:uppercase; letter-spacing:0.05em; color:var(--muted); margin-bottom:6px; }
+  .ask-answer .limitation{ font-family:"Helvetica Neue",Arial,sans-serif; font-size:11px; color:var(--muted); font-style:italic; margin-top:8px; }
+</style>
+</head>
+<body>
+
+<div class="page">
+
+  <div class="masthead">
+    <h1>HisabDo AI</h1>
+    <div class="sub">Your Financial Intelligence</div>
+  </div>
+
+  <div class="live-panel">
+    <div class="row" style="margin-bottom:6px;">
+      <label for="liveBaseUrl">Base URL</label>
+      <input id="liveBaseUrl" type="text" value="http://localhost:5000" spellcheck="false">
+      <label for="liveUserId">Demo user (X-Demo-User)</label>
+      <input id="liveUserId" type="text" value="dddddddd-dddd-dddd-dddd-dddddddddddd" spellcheck="false">
+      <button id="btnFetchLive">Fetch Live</button>
+      <span id="liveStatus" class="live-status">Using sample data below</span>
+    </div>
+    <div class="row">
+      <button class="user-chip active" data-user="dddddddd-dddd-dddd-dddd-dddddddddddd" id="chipRich">Rich (full dashboard)</button>
+      <button class="user-chip" data-user="eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee" id="chipEmpty">Empty (no data)</button>
+      <button class="user-chip" data-user="ffffffff-ffff-ffff-ffff-ffffffffffff" id="chipHealthOnly">Health only (partial)</button>
+      <button class="user-chip" data-user="__ERROR__" id="chipError">Simulate API error</button>
+    </div>
+  </div>
+
+  <div id="app"></div>
+
+</div>
+
+<div id="modalRoot"></div>
+
+<script>
+// ---------------------------------------------------------------------
+// Inline copy of the state-machine logic from web_dashboard_client.js so
+// this file previews standalone with no module-loader/build step. In the
+// real app, import from that file instead of duplicating this (see
+// HOW_TO_RUN_day18.md Part D).
+// ---------------------------------------------------------------------
+const LoadState = { Idle: "Idle", Loading: "Loading", Success: "Success", Empty: "Empty", Error: "Error" };
+
+async function callApi(path, { method = "GET", body, baseUrl, demoUserHeader } = {}) {
+  const headers = { "Content-Type": "application/json" };
+  if (demoUserHeader) headers["X-Demo-User"] = demoUserHeader;
+  let response;
+  try {
+    response = await fetch(`${baseUrl}${path}`, { method, headers, body: body ? JSON.stringify(body) : undefined });
+  } catch (err) {
+    const e = new Error(err.message); e.statusCode = 0; e.retryable = true; throw e;
+  }
+  if (response.ok) return response.json();
+  let apiError;
+  try { apiError = await response.json(); } catch { apiError = { code: "UNKNOWN_ERROR", message: "An unexpected error occurred.", retryable: true }; }
+  const e = new Error(apiError.message); e.statusCode = response.status; e.retryable = apiError.retryable ?? true; throw e;
+}
+
+function isDashboardEmpty(data) {
+  return !data || (!data.financialHealth && (data.spendingPatterns || []).length === 0 &&
+    (data.anomalies || []).length === 0 && !data.cashFlowForecast &&
+    (data.budgetRecommendations || []).length === 0 && (data.recommendations || []).length === 0);
+}
+
+class DashboardViewModel {
+  constructor(opts = {}) { this.opts = opts; }
+
+  async load() {
+    try {
+      const data = await callApi("/api/web/ai/dashboard", this.opts);
+      return isDashboardEmpty(data)
+        ? { state: LoadState.Empty, data: null, message: "No AI financial insights are available yet.", canRetry: true }
+        : { state: LoadState.Success, data, message: null, canRetry: false };
+    } catch (err) {
+      return { state: LoadState.Error, data: null, message: err.message || "Something went wrong. Please try again.", canRetry: err.retryable !== false };
+    }
+  }
+
+  async ask(question) {
+    if (!question || !question.trim())
+      return { state: LoadState.Error, data: null, message: "Please enter a question.", canRetry: false };
+    try {
+      const answer = await callApi("/api/web/ai/ask", { ...this.opts, method: "POST", body: { question: question.trim() } });
+      return !answer || !answer.answer
+        ? { state: LoadState.Empty, data: answer, message: answer?.limitation || "No answer is available for this question.", canRetry: true }
+        : { state: LoadState.Success, data: answer, message: null, canRetry: false };
+    } catch (err) {
+      return { state: LoadState.Error, data: null, message: err.message || "Something went wrong. Please try again.", canRetry: err.retryable !== false };
+    }
+  }
+}
+
+function findRecommendationDetail(dashboardData, recommendationId) {
+  const rec = (dashboardData.recommendations || []).find(r => r.recommendationId === recommendationId);
+  if (!rec) return null;
+  return {
+    id: rec.recommendationId, type: rec.type, priority: rec.priority, severity: rec.severity,
+    reason: rec.reason, action: rec.action, verifiedAmount: rec.verifiedAmount,
+    verifiedPercentage: rec.verifiedPercentage, expectedBenefit: rec.verifiedExpectedBenefit, limitation: rec.limitation,
+  };
+}
+// ---------------------------------------------------------------------
+// Real, captured sample responses — used for the four demo chips above
+// so the dashboard previews instantly without a live server.
+// ---------------------------------------------------------------------
+const SAMPLES = {
+  "dddddddd-dddd-dddd-dddd-dddddddddddd": {"financialHealth":{"isVerified":true,"score":72,"classification":"Good","factors":{"Saving Behavior":22,"Expense Control":18,"Cash Flow":12,"Budget Control":13,"Debt/Udhaar":7},"explanation":"Saving behavior and cash flow are strong; budget adherence in Food needs attention."},"spendingPatterns":[{"isVerified":true,"category":"Food","currentAmount":17940,"previousAmount":14020,"percentageChange":28.0,"trend":"Up","explanation":"Food spending increased noticeably this period."},{"isVerified":true,"category":"Transport","currentAmount":3100,"previousAmount":3200,"percentageChange":-3.1,"trend":"Down","explanation":"Transport spending is stable to slightly lower."},{"isVerified":true,"category":"Bills","currentAmount":4500,"previousAmount":4500,"percentageChange":0,"trend":"Flat","explanation":"Bills are unchanged from the previous period."}],"anomalies":[{"isVerified":true,"type":"Unusual Amount","amount":9000,"severity":"High","reason":"Food expense is about 990% above the typical Rs 825 baseline.","explanation":"This single transaction is well outside your normal Food spending pattern."}],"cashFlowForecast":{"isVerified":true,"forecastIncome":50000,"forecastExpense":11817,"expectedSaving":38183,"expectedClosingBalance":null,"confidence":"Medium","explanation":"Based on 3 months of history. A closing balance isn't available without a trusted opening balance on file."},"budgetRecommendations":[{"isVerified":true,"category":"Food","historicalAverage":3550,"recommendedBudget":3550,"existingBudget":1000,"budgetVariance":-2550,"reason":"Historical average is well above the existing budget.","dataSufficiency":"Sufficient","explanation":"Consider raising the Food budget closer to actual spending."},{"isVerified":true,"category":"Transport","historicalAverage":3100,"recommendedBudget":3100,"existingBudget":3500,"budgetVariance":400,"reason":"Historical average is within the existing budget.","dataSufficiency":"Sufficient","explanation":"Current Transport budget has healthy headroom."}],"recommendations":[{"recommendationId":"rec-cashflow-risk","isVerified":true,"type":"CashFlowRisk","priority":"High","severity":"High","reason":"Verified forecasted saving is positive this period, but Food overspending is eroding it.","action":"Review expected expenses before the forecast period.","verifiedAmount":38183,"verifiedPercentage":null,"verifiedExpectedBenefit":null,"limitation":null},{"recommendationId":"rec-food-unusual","isVerified":true,"type":"UnusualSpendingReview","priority":"High","severity":"High","reason":"Verified anomaly: Unusual Amount (High) in Food.","action":"Review the transaction details and confirm whether the spending was expected.","verifiedAmount":9000,"verifiedPercentage":null,"verifiedExpectedBenefit":null,"limitation":null},{"recommendationId":"rec-food-budget","isVerified":true,"type":"BudgetAdjustment","priority":"Medium","severity":"Medium","reason":"Verified budget utilization for Food is high relative to the existing budget.","action":"Review Food spending and compare it with the existing budget.","verifiedAmount":17940,"verifiedPercentage":138,"verifiedExpectedBenefit":null,"limitation":null},{"recommendationId":"rec-transport-budget","isVerified":true,"type":"BudgetAdjustment","priority":"Low","severity":null,"reason":"Verified budget engine recommends Rs 3,100 for Transport, within existing budget.","action":"Review the recommended budget against your current financial plan.","verifiedAmount":3100,"verifiedPercentage":null,"verifiedExpectedBenefit":null,"limitation":"This recommendation is based on 3 months of history and may change as spending behavior changes."}]},
+  "eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee": {"financialHealth":null,"spendingPatterns":[],"anomalies":[],"cashFlowForecast":null,"budgetRecommendations":[],"recommendations":[]},
+  "ffffffff-ffff-ffff-ffff-ffffffffffff": {"financialHealth":{"isVerified":true,"score":45,"classification":"Needs Attention","factors":{"Saving Behavior":8,"Expense Control":12,"Cash Flow":5},"explanation":"Saving rate is low this period. Other verified factors aren't available yet."},"spendingPatterns":[],"anomalies":[],"cashFlowForecast":null,"budgetRecommendations":[],"recommendations":[]},
+};
+
+let currentDashboardData = null;
+const vm = new DashboardViewModel({});
+
+function fmtRs(n) { return "Rs " + Math.round(n).toLocaleString(); }
+
+// --- Card renderers -----------------------------------------------------
+function renderHealthCard(h) {
+  if (!h || !h.isVerified) return `<div class="dash-card"><div class="card-title">Financial Health</div><div class="empty-mini">No verified financial health result is available yet.</div></div>`;
+  const clsClass = h.classification.includes("Needs") ? "Needs" : "";
+  return `
+    <div class="dash-card">
+      <div class="card-title">Financial Health</div>
+      <div class="health-score"><span class="num">${h.score}</span><span class="sans" style="color:var(--muted);font-size:13px;">/100</span><span class="cls ${clsClass} sans">${h.classification}</span></div>
+      ${h.explanation ? `<div class="health-explain">${h.explanation}</div>` : ""}
+      ${h.factors ? Object.entries(h.factors).map(([k, v]) => `<div class="factor-row"><span>${k}</span><span>${v}</span></div>`).join("") : ""}
+    </div>`;
+}
+
+function renderSpendingCard(patterns) {
+  if (!patterns || !patterns.length) return `<div class="dash-card"><div class="card-title">Spending Patterns</div><div class="empty-mini">No verified spending pattern data is available yet.</div></div>`;
+  const arrow = { Up: "↑", Down: "↓", Flat: "→" };
+  return `
+    <div class="dash-card">
+      <div class="card-title">Spending Patterns</div>
+      ${patterns.map(p => `
+        <div class="pattern-row">
+          <span><span class="trend-arrow ${p.trend}">${arrow[p.trend] || "→"}</span>${p.category}</span>
+          <span>${fmtRs(p.currentAmount)} <span style="color:var(--muted);">(${p.percentageChange >= 0 ? "+" : ""}${p.percentageChange}%)</span></span>
+        </div>`).join("")}
+    </div>`;
+}
+
+function renderAnomaliesCard(anomalies) {
+  if (!anomalies || !anomalies.length) return `<div class="dash-card"><div class="card-title">Anomalies</div><div class="empty-mini">No anomalies detected for the most recent verified period.</div></div>`;
+  return `
+    <div class="dash-card">
+      <div class="card-title">Anomalies <span class="sans" style="font-weight:400;">${anomalies.length} item${anomalies.length !== 1 ? "s" : ""} require review</span></div>
+      ${anomalies.map(a => `
+        <div class="anomaly-item">
+          <div class="sev">${a.severity} · ${a.type}</div>
+          <div>${a.reason}</div>
+        </div>`).join("")}
+    </div>`;
+}
+
+function renderForecastCard(f) {
+  if (!f || !f.isVerified) return `<div class="dash-card"><div class="card-title">Cash-Flow Forecast</div><div class="empty-mini">No verified forecast is available yet.</div></div>`;
+  return `
+    <div class="dash-card">
+      <div class="card-title">Cash-Flow Forecast <span class="sans" style="font-weight:400;">${f.confidence} confidence</span></div>
+      <div class="cf-row"><span>Forecast Income</span><b>${fmtRs(f.forecastIncome)}</b></div>
+      <div class="cf-row"><span>Forecast Expense</span><b>${fmtRs(f.forecastExpense)}</b></div>
+      <div class="cf-row"><span>Expected Saving</span><b>${fmtRs(f.expectedSaving)}</b></div>
+      ${f.expectedClosingBalance != null ? `<div class="cf-row"><span>Closing Balance</span><b>${fmtRs(f.expectedClosingBalance)}</b></div>` : ""}
+      ${f.explanation ? `<div class="cf-note">${f.explanation}</div>` : ""}
+    </div>`;
+}
+
+function renderBudgetCard(recs) {
+  if (!recs || !recs.length) return `<div class="dash-card"><div class="card-title">Budget Recommendations</div><div class="empty-mini">No verified budget data is available yet.</div></div>`;
+  return `
+    <div class="dash-card">
+      <div class="card-title">Budget Recommendations</div>
+      ${recs.map(b => `
+        <div class="budget-row">
+          <span class="cat">${b.category}</span> — recommended ${fmtRs(b.recommendedBudget)}${b.existingBudget != null ? ` (current ${fmtRs(b.existingBudget)})` : ""}
+          <div style="color:var(--muted);margin-top:2px;">${b.reason}</div>
+        </div>`).join("")}
+    </div>`;
+}
+
+function renderRecommendationsCard(recs) {
+  if (!recs || !recs.length) return `<div class="dash-card full"><div class="card-title">AI Recommendations</div><div class="empty-mini">No AI recommendations right now — nothing verified needs your attention.</div></div>`;
+  return `
+    <div class="dash-card full">
+      <div class="card-title">AI Recommendations</div>
+      ${recs.map(r => `
+        <div class="rec-card ${r.priority}" data-rec-id="${r.recommendationId}">
+          <div class="top">
+            <span class="type">${r.type.replace(/([a-z])([A-Z])/g, "$1 $2")}</span>
+            <span>
+              <span class="badge ${r.priority}">${r.priority}</span>
+              ${r.severity ? ` <span class="badge ${r.severity}">${r.severity}</span>` : ""}
+            </span>
+          </div>
+          <div style="margin-top:4px;color:var(--muted);">${r.reason}</div>
+        </div>`).join("")}
+    </div>`;
+}
+
+function renderAskCard() {
+  return `
+    <div class="dash-card full">
+      <div class="card-title">Ask HisabDo AI</div>
+      <div class="ask-composer">
+        <input id="askInput" type="text" placeholder="Ask about your health score, spending, budget, anomalies, forecast…">
+        <button id="askBtn">Ask</button>
+      </div>
+      <div id="askAnswerArea"></div>
+    </div>`;
+}
+
+// --- State renderers -----------------------------------------------------
+function renderLoading() {
+  document.getElementById("app").innerHTML = `
+    <div class="grid">
+      ${Array.from({ length: 4 }).map(() => `<div class="dash-card"><div class="skeleton-line" style="width:40%"></div><div class="skeleton-line"></div><div class="skeleton-line" style="width:70%"></div></div>`).join("")}
+    </div>`;
+}
+
+function renderEmpty(message, onRetry) {
+  document.getElementById("app").innerHTML = `
+    <div class="empty-state">
+      <h2>No AI financial insights are available yet</h2>
+      <p class="sans">${message}</p>
+      <button class="retry-btn" id="emptyRetryBtn">Retry</button>
+    </div>`;
+  document.getElementById("emptyRetryBtn").onclick = onRetry;
+}
+
+function renderError(message, canRetry, onRetry) {
+  document.getElementById("app").innerHTML = `
+    <div class="error-state">
+      <h2>Something went wrong</h2>
+      <p class="sans">${message}</p>
+      ${canRetry ? `<button class="retry-btn" id="errorRetryBtn">Retry</button>` : ""}
+    </div>`;
+  if (canRetry) document.getElementById("errorRetryBtn").onclick = onRetry;
+}
+
+function renderDashboard(data) {
+  currentDashboardData = data;
+  document.getElementById("app").innerHTML = `
+    <div class="grid">
+      ${renderHealthCard(data.financialHealth)}
+      ${renderSpendingCard(data.spendingPatterns)}
+      ${renderAnomaliesCard(data.anomalies)}
+      ${renderForecastCard(data.cashFlowForecast)}
+      ${renderBudgetCard(data.budgetRecommendations)}
+      ${renderRecommendationsCard(data.recommendations)}
+      ${renderAskCard()}
+    </div>`;
+
+  document.querySelectorAll(".rec-card").forEach(card => {
+    card.addEventListener("click", () => openRecommendationDetail(card.dataset.recId));
+  });
+  document.getElementById("askBtn").onclick = () => handleAsk();
+  document.getElementById("askInput").addEventListener("keydown", (e) => { if (e.key === "Enter") handleAsk(); });
+}
+
+// --- Recommendation detail modal -----------------------------------------
+function openRecommendationDetail(recId) {
+  const detail = findRecommendationDetail(currentDashboardData, recId);
+  if (!detail) return;
+  document.getElementById("modalRoot").innerHTML = `
+    <div class="modal-overlay" id="modalOverlay">
+      <div class="modal-box sans">
+        <button class="modal-close" id="modalCloseBtn">✕ Close</button>
+        <h2>${detail.type.replace(/([a-z])([A-Z])/g, "$1 $2")}</h2>
+        <div class="detail-row"><div class="detail-label">Why</div><div class="detail-value">${detail.reason}</div></div>
+        ${(detail.verifiedAmount != null || detail.verifiedPercentage != null) ? `
+        <div class="detail-row"><div class="detail-label">Verified Financial Pattern</div><div class="detail-value">${detail.verifiedAmount != null ? fmtRs(detail.verifiedAmount) : ""}${detail.verifiedPercentage != null ? ` (${detail.verifiedPercentage}%)` : ""}</div></div>` : ""}
+        <div class="detail-row"><div class="detail-label">Priority</div><div class="detail-value"><span class="badge ${detail.priority}">${detail.priority}</span></div></div>
+        ${detail.severity ? `<div class="detail-row"><div class="detail-label">Severity</div><div class="detail-value"><span class="badge ${detail.severity}">${detail.severity}</span></div></div>` : ""}
+        <div class="detail-row"><div class="detail-label">Action</div><div class="detail-value">${detail.action}</div></div>
+        ${detail.expectedBenefit ? `<div class="detail-row"><div class="detail-label">Expected Benefit</div><div class="detail-value">${detail.expectedBenefit}</div></div>` : ""}
+        ${detail.limitation ? `<div class="detail-row"><div class="detail-label">Limitation</div><div class="detail-value" style="color:var(--muted);font-style:italic;">${detail.limitation}</div></div>` : ""}
+      </div>
+    </div>`;
+  document.getElementById("modalCloseBtn").onclick = closeModal;
+  document.getElementById("modalOverlay").addEventListener("click", (e) => { if (e.target.id === "modalOverlay") closeModal(); });
+}
+function closeModal() { document.getElementById("modalRoot").innerHTML = ""; }
+
+// --- Ask HisabDo ----------------------------------------------------------
+async function handleAsk() {
+  const input = document.getElementById("askInput");
+  const question = input.value;
+  const answerArea = document.getElementById("askAnswerArea");
+  const askBtn = document.getElementById("askBtn");
+
+  askBtn.disabled = true;
+  answerArea.innerHTML = `<div class="ask-answer sans">Thinking…</div>`;
+
+  const state = await vm.ask(question);
+
+  if (state.state === LoadState.Error) {
+    answerArea.innerHTML = `<div class="ask-answer sans" style="color:var(--high);">${state.message}</div>`;
+  } else if (state.state === LoadState.Empty) {
+    answerArea.innerHTML = `<div class="ask-answer sans"><div class="limitation">${state.message}</div></div>`;
+  } else {
+    const a = state.data;
+    answerArea.innerHTML = `
+      <div class="ask-answer">
+        ${a.intent ? `<div class="intent-tag">${a.intent}</div>` : ""}
+        ${a.answer}
+        ${a.limitation ? `<div class="limitation">${a.limitation}</div>` : ""}
+      </div>`;
+  }
+  askBtn.disabled = false;
+  input.value = "";
+}
+
+// --- Load orchestration (sample vs. live) ---------------------------------
+function setLiveStatus(text, kind) {
+  const el = document.getElementById("liveStatus");
+  el.textContent = text;
+  el.className = "live-status" + (kind ? " " + kind : "");
+}
+
+function loadSample(userId) {
+  renderLoading();
+  setTimeout(() => { // simulate a brief load so the skeleton is visible
+    if (userId === "__ERROR__") {
+      renderError("Unable to load AI dashboard.", true, () => loadSample(userId));
+      setLiveStatus("Simulated error state", "error");
+      return;
+    }
+    const data = SAMPLES[userId];
+    const isEmpty = !data.financialHealth && data.spendingPatterns.length === 0 && data.anomalies.length === 0 &&
+      !data.cashFlowForecast && data.budgetRecommendations.length === 0 && data.recommendations.length === 0;
+    if (isEmpty) {
+      renderEmpty("No AI financial insights are available yet.", () => loadSample(userId));
+    } else {
+      renderDashboard(data);
+    }
+    setLiveStatus("Using sample data below");
+  }, 350);
+}
+
+document.querySelectorAll(".user-chip").forEach(chip => {
+  chip.addEventListener("click", () => {
+    document.querySelectorAll(".user-chip").forEach(c => c.classList.remove("active"));
+    chip.classList.add("active");
+    const userId = chip.dataset.user;
+    if (userId !== "__ERROR__") document.getElementById("liveUserId").value = userId;
+    loadSample(userId);
+  });
+});
+
+document.getElementById("btnFetchLive").addEventListener("click", async () => {
+  const baseUrl = document.getElementById("liveBaseUrl").value.trim().replace(/\/$/, "");
+  const userId = document.getElementById("liveUserId").value.trim();
+  vm.opts = { baseUrl, demoUserHeader: userId };
+
+  renderLoading();
+  setLiveStatus("Fetching…");
+  const state = await vm.load();
+
+  if (state.state === LoadState.Success) {
+    renderDashboard(state.data);
+    setLiveStatus(`Loaded live from ${baseUrl}`, "ok");
+  } else if (state.state === LoadState.Empty) {
+    renderEmpty(state.message, () => document.getElementById("btnFetchLive").click());
+    setLiveStatus("Loaded live — empty dashboard", "ok");
+  } else {
+    renderError(state.message, state.canRetry, () => document.getElementById("btnFetchLive").click());
+    setLiveStatus(state.message, "error");
+  }
+});
+
+// Initial render
+loadSample("dddddddd-dddd-dddd-dddd-dddddddddddd");
+</script>
+
+</body>
+</html>
