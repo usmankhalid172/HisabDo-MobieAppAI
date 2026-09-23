@@ -1,17 +1,17 @@
 {
   "format": 1,
   "restore": {
-    "E:\\python library\\Day 14 final(Budget)\\BudgetRecApi\\BudgetRecApi.csproj": {}
+    "E:\\python library\\HisabDo-MobieAppAI\\Day 14 final(Budget)\\BudgetRecApi\\BudgetRecApi.csproj": {}
   },
   "projects": {
-    "E:\\python library\\Day 14 final(Budget)\\BudgetRecApi\\BudgetRecApi.csproj": {
+    "E:\\python library\\HisabDo-MobieAppAI\\Day 14 final(Budget)\\BudgetRecApi\\BudgetRecApi.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "E:\\python library\\Day 14 final(Budget)\\BudgetRecApi\\BudgetRecApi.csproj",
+        "projectUniqueName": "E:\\python library\\HisabDo-MobieAppAI\\Day 14 final(Budget)\\BudgetRecApi\\BudgetRecApi.csproj",
         "projectName": "BudgetRecApi",
-        "projectPath": "E:\\python library\\Day 14 final(Budget)\\BudgetRecApi\\BudgetRecApi.csproj",
+        "projectPath": "E:\\python library\\HisabDo-MobieAppAI\\Day 14 final(Budget)\\BudgetRecApi\\BudgetRecApi.csproj",
         "packagesPath": "C:\\Users\\Laiba Yousuf\\.nuget\\packages\\",
-        "outputPath": "E:\\python library\\Day 14 final(Budget)\\BudgetRecApi\\obj\\",
+        "outputPath": "E:\\python library\\HisabDo-MobieAppAI\\Day 14 final(Budget)\\BudgetRecApi\\obj\\",
         "projectStyle": "PackageReference",
         "fallbackFolders": [
           "E:\\Microsoft Visual Studio\\Installer\\NuGetPackages"
