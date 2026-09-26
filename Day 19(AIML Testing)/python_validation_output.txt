@@ -1,0 +1,83 @@
+
+==============================================================================
+FINANCIAL HEALTH — Saving Behavior thresholds (exact boundaries)
+==============================================================================
+  [PASS] Saving rate 25% -> 25.0/25
+  [PASS] Saving rate 24.99% -> 22.0/25
+  [PASS] Saving rate 20% -> 22.0/25
+  [PASS] Saving rate 19.99% -> 18.0/25
+  [PASS] Saving rate 15% -> 18.0/25
+  [PASS] Saving rate 14.99% -> 14.0/25
+  [PASS] Saving rate 10% -> 14.0/25
+  [PASS] Saving rate 9.99% -> 8.0/25
+  [PASS] Saving rate 5% -> 8.0/25
+  [PASS] Saving rate 4.99% -> 3.0/25
+
+==============================================================================
+FINANCIAL HEALTH — Expense Control thresholds (exact boundaries)
+==============================================================================
+  [PASS] Expense ratio 50% -> 20.0/20
+  [PASS] Expense ratio 50.01% -> 18.0/20
+  [PASS] Expense ratio 60% -> 18.0/20
+  [PASS] Expense ratio 60.01% -> 15.0/20
+  [PASS] Expense ratio 70% -> 15.0/20
+  [PASS] Expense ratio 70.01% -> 12.0/20
+  [PASS] Expense ratio 80% -> 12.0/20
+  [PASS] Expense ratio 80.01% -> 7.0/20
+  [PASS] Expense ratio 90% -> 7.0/20
+  [PASS] Expense ratio 90.01% -> 3.0/20
+
+==============================================================================
+FINANCIAL HEALTH — Cash Flow status boundaries
+==============================================================================
+  [PASS] Cash flow just above 20% -> 'Strong Positive'
+  [PASS] Cash flow just below 20% -> 'Positive' (not yet Strong)
+  [PASS] Cash flow exactly 0 -> 'Near Zero', not 'Positive' or 'Negative'
+  [PASS] Cash flow of -1 (barely negative) -> 'Negative'
+
+==============================================================================
+FINANCIAL HEALTH — Overall classification bands
+==============================================================================
+  [PASS] Score 90 -> 'Excellent'
+  [PASS] Score 89.99 -> 'Good'
+  [PASS] Score 75 -> 'Good'
+  [PASS] Score 74.99 -> 'Fair'
+  [PASS] Score 60 -> 'Fair'
+  [PASS] Score 59.99 -> 'Needs Attention'
+  [PASS] Score 40 -> 'Needs Attention'
+  [PASS] Score 39.99 -> 'Poor'
+  [PASS] Score 0 -> 'Poor'
+
+==============================================================================
+FINANCIAL HEALTH — Insufficient data / no-transaction handling
+==============================================================================
+  [PASS] No transactions -> score is exactly 0, status 'Poor', not a crash or fabricated value
+  [PASS] No transactions -> insight explicitly says data is unavailable
+
+==============================================================================
+FINANCIAL HEALTH — Zero / negative value edge cases
+==============================================================================
+  [PASS] Zero income (but has transactions) -> score computed without a divide-by-zero crash
+  [PASS] Zero income -> saving rate reported as 0, not NaN/error
+  [PASS] Expense exceeds income (negative cash flow) -> handled without crashing, cashFlow is negative
+  [PASS] Negative cash flow -> status reflects a low score (not artificially inflated)
+
+==============================================================================
+FINANCIAL HEALTH — Methodology note: rescaling when factors are unavailable
+==============================================================================
+  [PASS] With only 3 of 6 factors available (no budget/debt/growth data), a maxed subset can still score close to 100
+  [WARN] Score rescaling when data is incomplete — A user with NO budget set, NO debt data, and NO previous-period expense (3 of 6 factors genuinely unavailable) still scored 100.0/100 here — the engine rescales the available 60 points up to /100 rather than capping the score or lowering confidence when most factors are missing. This may be the intended MVP behavior (the spec's Section 15 marks Budget/Debt as lower priority than the core 3), but it means a 'high score' can mean either 'verified excellent across all 6 factors' or 'verified good on only half the factors' — worth confirming the UI should surface which factors were actually available, not just the final number.
+
+==============================================================================
+FINANCIAL HEALTH — Expense growth trend tests
+==============================================================================
+  [PASS] Expense growth +50% (large increase) -> lowest growth score tier (1/10)
+  [PASS] Expense growth -40% (decrease) -> handled correctly, negative growth% reported
+  [PASS] No previous-period expense data -> expenseGrowth is None, never fabricated
+
+##############################################################################
+TOTAL: 43 passed, 0 failed, 1 warnings
+##############################################################################
+
+WARNINGS (methodology notes, not hard failures):
+  - Score rescaling when data is incomplete — A user with NO budget set, NO debt data, and NO previous-period expense (3 of 6 factors genuinely unavailable) still scored 100.0/100 here — the engine rescales the available 60 points up to /100 rather than capping the score or lowering confidence when most factors are missing. This may be the intended MVP behavior (the spec's Section 15 marks Budget/Debt as lower priority than the core 3), but it means a 'high score' can mean either 'verified excellent across all 6 factors' or 'verified good on only half the factors' — worth confirming the UI should surface which factors were actually available, not just the final number.

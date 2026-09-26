@@ -1,0 +1,166 @@
+HisabDo AI/ML Validation — Day 19
+Run at (UTC): 2026-09-23 07:15:11
+
+==============================================================================
+ANOMALY DETECTION — SpendingAnomalyDetectionService (Day 12)
+==============================================================================
+  --- Unusual Amount boundary tests (threshold = max(avg*2, avg+2*sd)) ---
+  [PASS] A1: far outlier (9000 vs baseline 800) is flagged UnusualAmount
+  [PASS] A2: normal amount (820 close to baseline 800) is NOT flagged
+  [PASS] A3: exactly-above-threshold amount (1601 > 1600) IS flagged
+  [PASS] A4: just-below-threshold amount (1599 < 1600) is NOT flagged
+  [PASS] A5: brand-new category with no baseline of its own uses the overall historical baseline, and a large amount is still flagged
+  [PASS] A6: insufficient category history (<2 data points) correctly skips the check rather than guessing
+  --- Duplicate Transaction tests ---
+  [PASS] D1: identical amount+category+description, same day -> flagged as duplicate candidate
+  [PASS] D2: same day, different amounts -> NOT flagged as duplicate
+  [WARN] D3: two same-day, same-amount, same-category transactions with NO description — both got flagged as a duplicate candidate. CategoriesMatch/DescriptionsMatch both treat a blank field as "matches anything", so two coincidentally-identical but genuinely separate purchases (e.g. two Rs 500 lunches) will always be flagged when no description is recorded. Not necessarily wrong for an MVP (better to over-flag and let the user dismiss it), but worth confirming this is the intended behavior.
+  --- Category Spike tests (period total vs. historical DAILY average) ---
+  [PASS] S1: genuine spike (300 -> 2500, one purchase/month both periods) IS flagged High
+  [PASS] S2: stable spending (+2.2%) is correctly NOT flagged as a spike
+  [WARN] S3: KNOWN ISSUE re-confirmed — normal per-purchase spending (2 x Rs 850, same as historical per-purchase amounts) is WRONGLY flagged as a spike — growth reported as 100.0% and severity High; historical average used was Rs 850 (a per-DAY average) compared against this month's Rs 1,700 TOTAL — see validation report Finding #1.
+  --- Insufficient data / zero & negative value tests ---
+  [PASS] Z1: zero historical data at all -> no crash, no invented anomaly
+  [PASS] Z2: zero current-period transactions -> empty, clean result
+  [PASS] Z3: zero and negative-amount transactions are silently excluded, not treated as anomalies or baseline data
+  --- Labeled accuracy run (ground truth vs. detected, at the case level) ---
+    OK [P1 far outlier] expected=True detected=True
+    OK [P2 duplicate] expected=True detected=True
+    OK [P3 genuine spike] expected=True detected=True
+    OK [N1 normal amount] expected=False detected=False
+    OK [N2 stable bills] expected=False detected=False
+    OK [N3 no data at all] expected=False detected=False
+  Anomaly Detection (case-level): TP=3 FP=0 TN=3 FN=0
+  METRIC Anomaly Detection (case-level) Precision: 100.0%
+  METRIC Anomaly Detection (case-level) Recall: 100.0%
+  METRIC Anomaly Detection (case-level) F1: 100.0%
+  METRIC Anomaly Detection (case-level) Accuracy: 100.0%
+
+==============================================================================
+CASH-FLOW FORECAST — CashFlowForecastService (Day 13)
+==============================================================================
+  --- Normal 6-month forecast ---
+  [PASS] Normal: expected income matches manual average
+  [PASS] Normal: expected expense matches manual average
+  [PASS] Normal: confidence is High with 6 full months
+  [PASS] Normal: closing balance computed when opening balance is trusted
+  --- Confidence threshold boundary tests ---
+  [PASS] Boundary: exactly 3 usable months -> Medium (not Low)
+  [PASS] Boundary: exactly 6 usable months, no gaps -> High
+  [PASS] Boundary: 6-month window with 1 empty month -> Medium (downgraded from High)
+  --- Insufficient historical data tests ---
+  [PASS] Insufficient: 1 usable month (<3) -> Low confidence, not a crash
+  [PASS] Insufficient: 1 usable month -> limitation about being below preferred minimum is included
+  [PASS] Insufficient: zero transactions at all -> Confidence 'Unavailable', not a fabricated forecast
+  --- Zero income / negative value tests ---
+  [PASS] Zero income: expectedIncome is 0, not NaN/crash
+  [PASS] Zero income: expectedSaving is negative (all expense, no income)
+  [PASS] Negative value: negative-amount transaction does not alter the expense average
+  --- Increasing / decreasing expense trend tests ---
+  [PASS] Increasing trend: forecast expense is the simple average, not the latest/highest value
+  [PASS] Decreasing trend: forecast expense is the simple average, not the latest/lowest value
+  --- Re-confirming known issue: Income excludes zero months, Expense does not ---
+  [PASS] Income average correctly divides by 2 (months with actual income), not 3
+  [WARN] Expense average is diluted by the empty 3rd month — got 20000 (= 60000/3) instead of 30000 (= 60000/2) — Income and Expense use inconsistent averaging rules (Income skips zero months, Expense does not). Re-confirmed here under controlled conditions — see validation report Finding #2.
+
+==============================================================================
+BUDGET RECOMMENDATION — BudgetRecommendationService (Day 14)
+==============================================================================
+  --- Category-wise rule tests (3-month window, Jun-Aug 2026) ---
+  [PASS] Food: historical average computed correctly (15000)
+  [PASS] Food: over-budget reason used when average > existing budget
+  [PASS] Food: recommended budget equals historical average, not the lower existing budget
+  [PASS] Transport: baseline reason used when existing budget already has headroom (not forced down)
+  [PASS] Transport: variance is positive (budget > average = headroom)
+  [PASS] Shopping: no-existing-budget reason used
+  [PASS] Shopping: utilization is null when there's no budget to divide by (never a fabricated %)
+  [PASS] Bills: exactly-equal average/budget -> zero variance, baseline reason (not flagged over)
+  --- Zero-existing-budget divide-by-zero guard ---
+  [PASS] Zero existing budget: utilization is null, not Infinity/NaN/crash
+  [PASS] Zero existing budget: variance is still computed (0 - average)
+  --- Insufficient-months boundary (PreferredMinimumMonths=2) ---
+  [PASS] 1-month window -> DataSufficiency 'Limited'
+  [PASS] 1-month window -> limitation explicitly states the reason
+  [PASS] Boundary: exactly 2 months -> DataSufficiency 'Sufficient' (not 'Limited')
+  [WARN] DataSufficiency methodology note — "Limited" is driven purely by the requested date-range length (months < 2), not by how many of those months the category actually has transactions in. A category with real data in only 1 of a 3-month requested window still reports "Sufficient".
+  --- Negative / zero value filtering ---
+  [PASS] Zero/negative-amount transactions excluded from the average
+  --- Re-confirming known issue: average divides by full requested window, not months with data ---
+  [WARN] Category with data in only 1 of 3 requested months — historical average reported as Rs 1500 (= 4500/3), noticeably lower than the true single-month figure of Rs 4,500 — same averaging-dilution pattern re-confirmed across Days 12-14. See validation report Finding #2.
+
+==============================================================================
+RECOMMENDATION ENGINE — TahaRecommendationEngine (Day 16)
+==============================================================================
+  --- Financial Health Score threshold (<=59 triggers) ---
+  [PASS] Score exactly 59 (boundary, inclusive) triggers FinancialHealthImprovement
+  [PASS] Score exactly 60 (just above boundary) does NOT trigger
+  [PASS] Score of 0 (worst case) still triggers correctly, no crash
+  [PASS] Score of 100 (best case) never triggers
+  --- Saving Rate threshold (<10% triggers) ---
+  [PASS] Saving rate exactly 10% (boundary) does NOT trigger (rule is strictly '<', not '<=')
+  [PASS] Saving rate 9.99% (just below boundary) DOES trigger
+  [PASS] Negative saving rate (spending more than earning) triggers correctly, no crash
+  --- Expense Growth threshold (>=20% triggers) ---
+  [PASS] Expense growth exactly 20% (boundary, inclusive) triggers SpendingReduction
+  [PASS] Expense growth 19.99% (just below boundary) does NOT trigger
+  [PASS] Negative expense growth (spending decreased) does NOT trigger
+  --- Budget Utilization thresholds (>=120% Medium, >=150% High) ---
+  [PASS] 120% utilization -> Medium priority (not yet Critical-tier)
+  [PASS] 150% utilization (boundary, inclusive) -> High priority
+  [PASS] 149% utilization (just below Critical boundary) -> still Medium
+  [PASS] Under-budget category (IsOverBudget=false) never generates a BudgetAdjustment recommendation from the status list
+  --- Cash-Flow Risk threshold (ExpectedSaving <= 0 triggers) ---
+  [PASS] Expected saving exactly 0 (boundary, inclusive) triggers CashFlowRisk
+  [PASS] Expected saving of just 1 (barely positive) does NOT trigger
+  [PASS] Deeply negative expected saving triggers correctly, no crash
+  --- Healthy input: every value within normal range -> zero recommendations ---
+  [PASS] Genuinely healthy input produces zero recommendations, not empty-but-fabricated ones
+  --- Insufficient data: nulls everywhere -> zero recommendations, limitations preserved ---
+  [PASS] No verified data anywhere -> zero recommendations (never invents a rule trigger from a null)
+  [PASS] Limitations from the input are passed through unchanged to the output
+  --- Deterministic ordering: Priority, then Severity, then Category (alphabetical) ---
+  [PASS] High-priority items all appear before Medium-priority items
+  [PASS] Within the same priority+severity tier, categories are sorted alphabetically (Apple before Zebra)
+  --- RecommendationSeverity.Critical is defined but never assigned ---
+  [WARN] Severity.Critical is defined in the enum but no code path ever assigns it — Even feeding the engine a Severity="Critical" verified anomaly, a 999% budget utilization, and every other threshold at its most extreme, every recommendation still comes back High/Medium/Low. Worth confirming this is intentional (reserved for a future rule) — currently a 121% and a 999% budget overrun both read as the same 'High' severity to the end user.
+  --- Two independent verified sources flagging the same category (expected behavior, not a dedup bug) ---
+  [PASS] Two independent verified sources about the same category correctly produce two separate recommendations (not silently merged/deduped)
+
+==============================================================================
+SPENDING PATTERN INTELLIGENCE — SpendingPatternIntelligenceService (Day 11)
+==============================================================================
+  --- Top categories and percentages ---
+  [PASS] Total expense sums correctly
+  [PASS] Top category ordered by amount descending
+  [PASS] Percentages sum to 100% across all categories
+  [PASS] Food's percentage is correctly 60%
+  --- Trend classification boundary tests (threshold = ±5%, strict) ---
+  [PASS] Exactly +5% change -> Stable (rule is strictly '>5', not '>=5')
+  [PASS] +5.01% change -> Increasing
+  [PASS] Exactly -5% change -> Stable (strictly '<-5', not '<=-5')
+  [PASS] -5.01% change -> Decreasing
+  [PASS] No change (0%) -> Stable
+  [PASS] Previous=0, current>0 -> 'New Category' (not a percentage-based trend, avoids a divide-by-zero %)
+  [PASS] New Category: ChangePercentage is null, never a fabricated infinite/huge %
+  --- Recurring-expense detection (>=3 occurrences, interval near 7/14/30/90 days) ---
+  [PASS] 4 monthly (~30-day interval) same-description transactions -> flagged recurring
+  [PASS] Only 2 occurrences (below MinimumRecurringOccurrences=3) -> NOT flagged
+  [PASS] 3 occurrences but irregular intervals (not near 7/14/30/90 days) -> NOT flagged
+  [PASS] 4 weekly (~7-day interval) transactions -> flagged recurring
+  [PASS] Transactions with NO description are excluded from recurring detection entirely (can't group them meaningfully)
+  --- Zero/negative value and transaction-type filtering ---
+  [PASS] Income-type transactions are excluded from spending analysis
+  [PASS] Null category normalizes to 'Uncategorized', not a crash or blank key
+  [PASS] Zero transactions at all -> TotalExpense 0, empty lists, no crash
+
+##############################################################################
+TOTAL: 85 passed, 0 failed, 6 warnings
+##############################################################################
+
+WARNINGS (methodology notes, not hard failures):
+  - ANOMALY DETECTION — SpendingAnomalyDetectionService (Day 12) :: D3: two same-day, same-amount, same-category transactions with NO description — both got flagged as a duplicate candidate. CategoriesMatch/DescriptionsMatch both treat a blank field as "matches anything", so two coincidentally-identical but genuinely separate purchases (e.g. two Rs 500 lunches) will always be flagged when no description is recorded. Not necessarily wrong for an MVP (better to over-flag and let the user dismiss it), but worth confirming this is the intended behavior.
+  - ANOMALY DETECTION — SpendingAnomalyDetectionService (Day 12) :: S3: KNOWN ISSUE re-confirmed — normal per-purchase spending (2 x Rs 850, same as historical per-purchase amounts) is WRONGLY flagged as a spike — growth reported as 100.0% and severity High; historical average used was Rs 850 (a per-DAY average) compared against this month's Rs 1,700 TOTAL — see validation report Finding #1.
+  - CASH-FLOW FORECAST — CashFlowForecastService (Day 13) :: Expense average is diluted by the empty 3rd month — got 20000 (= 60000/3) instead of 30000 (= 60000/2) — Income and Expense use inconsistent averaging rules (Income skips zero months, Expense does not). Re-confirmed here under controlled conditions — see validation report Finding #2.
+  - BUDGET RECOMMENDATION — BudgetRecommendationService (Day 14) :: DataSufficiency methodology note — "Limited" is driven purely by the requested date-range length (months < 2), not by how many of those months the category actually has transactions in. A category with real data in only 1 of a 3-month requested window still reports "Sufficient".
+  - BUDGET RECOMMENDATION — BudgetRecommendationService (Day 14) :: Category with data in only 1 of 3 requested months — historical average reported as Rs 1500 (= 4500/3), noticeably lower than the true single-month figure of Rs 4,500 — same averaging-dilution pattern re-confirmed across Days 12-14. See validation report Finding #2.
+  - RECOMMENDATION ENGINE — TahaRecommendationEngine (Day 16) :: Severity.Critical is defined in the enum but no code path ever assigns it — Even feeding the engine a Severity="Critical" verified anomaly, a 999% budget utilization, and every other threshold at its most extreme, every recommendation still comes back High/Medium/Low. Worth confirming this is intentional (reserved for a future rule) — currently a 121% and a 999% budget overrun both read as the same 'High' severity to the end user.

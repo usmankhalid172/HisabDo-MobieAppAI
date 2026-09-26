@@ -8,6 +8,8 @@ public static class DependencyInjection
     {
         services.AddScoped<ForecastingService>();
         services.AddScoped<BudgetAnalysisService>();
+        services.AddScoped<AskHisabDoService>();
+        services.AddScoped<RecommendationService>();
         return services;
     }
 }

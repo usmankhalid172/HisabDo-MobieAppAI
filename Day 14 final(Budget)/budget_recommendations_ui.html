@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Budget Recommendations — HisabDo AI</title>
+<style>
+  :root{
+    --ink:#22261f; --paper:#f6f1e4; --paper-line:#ded4b8;
+    --ledger-green:#2f5d4f; --ledger-green-deep:#1d3c33;
+    --over:#8a3324; --over-bg:#f7e6e0; --headroom:#3d6b4a; --headroom-bg:#e6efe6;
+    --warn:#a9781f; --warn-bg:#f7edd8; --muted:#6f6a58; --card:#fffdf6;
+  }
+  *{box-sizing:border-box;}
+  body{ margin:0; background:var(--paper); color:var(--ink); font-family:"Iowan Old Style","Palatino Linotype",Georgia,serif; -webkit-font-smoothing:antialiased; }
+  .sans{ font-family:"Helvetica Neue",Arial,sans-serif; }
+  .page{ max-width:920px; margin:0 auto; padding:40px 24px 80px; }
+
+  .masthead{ display:flex; justify-content:space-between; align-items:baseline; border-bottom:2px solid var(--ink); padding-bottom:14px; margin-bottom:10px; }
+  .masthead h1{ font-size:22px; letter-spacing:0.02em; margin:0; font-weight:600; }
+  .masthead .period{ font-family:"Helvetica Neue",Arial,sans-serif; font-size:13px; color:var(--muted); }
+
+  .dev-toggle{ font-family:"Helvetica Neue",Arial,sans-serif; font-size:12px; text-align:center; margin-bottom:20px; }
+  .dev-toggle button{ font-family:inherit; font-size:12px; padding:6px 12px; margin:0 4px 8px; border:1px solid var(--ink); background:var(--card); cursor:pointer; }
+  .dev-toggle button.active{ background:var(--ink); color:var(--paper); }
+
+  .summary-row{ display:flex; gap:14px; margin-bottom:26px; font-family:"Helvetica Neue",Arial,sans-serif; flex-wrap:wrap; }
+  .summary-chip{ padding:8px 14px; border-radius:20px; font-size:13px; font-weight:600; display:flex; align-items:center; gap:6px; }
+  .summary-chip.total{ background:var(--ink); color:var(--paper); }
+  .summary-chip.over{ background:var(--over-bg); color:var(--over); }
+
+  section{ margin-bottom:30px; }
+  .section-title{ font-family:"Helvetica Neue",Arial,sans-serif; font-size:13px; text-transform:uppercase; letter-spacing:0.08em; color:var(--muted); border-bottom:1px solid var(--paper-line); padding-bottom:8px; margin-bottom:16px; }
+
+  .suggestion-list{ background:var(--card); border:1px solid var(--paper-line); padding:16px 20px; font-family:"Helvetica Neue",Arial,sans-serif; font-size:13px; line-height:1.8; }
+
+  .cat-card{ background:var(--card); border:1px solid var(--paper-line); border-left-width:5px; padding:18px 20px; margin-bottom:16px; }
+  .cat-card.over{ border-left-color:var(--over); }
+  .cat-card.ok{ border-left-color:var(--headroom); }
+
+  .cat-top{ display:flex; justify-content:space-between; align-items:flex-start; gap:16px; margin-bottom:14px; }
+  .cat-name{ font-size:17px; font-weight:600; }
+  .cat-flags{ display:flex; gap:6px; }
+  .cat-flag{ font-family:"Helvetica Neue",Arial,sans-serif; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.05em; padding:3px 10px; border-radius:12px; white-space:nowrap; }
+  .cat-flag.over{ background:var(--over-bg); color:var(--over); }
+  .cat-flag.limited{ background:var(--warn-bg); color:var(--warn); }
+
+  .budget-compare{ display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px; margin-bottom:14px; font-family:"Helvetica Neue",Arial,sans-serif; }
+  .budget-compare .col .label{ font-size:11px; text-transform:uppercase; letter-spacing:0.05em; color:var(--muted); margin-bottom:4px; }
+  .budget-compare .col .value{ font-size:18px; font-weight:600; font-variant-numeric:tabular-nums; }
+  .budget-compare .col.recommended .value{ color:var(--ledger-green-deep); }
+
+  .util-bar-track{ height:8px; background:#ece4cf; border-radius:2px; overflow:hidden; margin-bottom:14px; }
+  .util-bar-fill{ height:100%; background:var(--headroom); }
+  .util-bar-fill.over{ background:var(--over); }
+
+  .cat-explanation{ font-size:14px; line-height:1.6; margin-bottom:8px; }
+  .cat-detail-row{ font-family:"Helvetica Neue",Arial,sans-serif; font-size:12px; color:var(--muted); margin-bottom:4px; }
+  .cat-action{ font-family:"Helvetica Neue",Arial,sans-serif; font-size:12px; color:var(--ledger-green-deep); background:#eef3ee; display:inline-block; padding:4px 10px; border-radius:4px; margin-top:6px; }
+
+  .empty-state{ text-align:center; padding:64px 20px; border:1px dashed var(--paper-line); }
+  .empty-state h2{ font-size:20px; margin-bottom:8px; }
+  .empty-state p{ font-family:"Helvetica Neue",Arial,sans-serif; color:var(--muted); font-size:14px; max-width:420px; margin:0 auto; }
+
+  .live-panel{ background:var(--card); border:1px solid var(--paper-line); padding:16px 18px; margin-bottom:20px; font-family:"Helvetica Neue",Arial,sans-serif; }
+  .live-panel .live-title{ font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; color:var(--muted); margin-bottom:10px; }
+  .live-grid{ display:grid; grid-template-columns:1.4fr 1.4fr 0.7fr; gap:10px; margin-bottom:10px; }
+  .live-grid label{ display:block; font-size:11px; color:var(--muted); margin-bottom:3px; }
+  .live-grid input{ width:100%; padding:7px 9px; border:1px solid var(--paper-line); background:#fff; font-family:inherit; font-size:13px; border-radius:3px; }
+  .live-actions{ display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
+  .live-actions button{ font-family:inherit; font-size:13px; font-weight:600; padding:8px 16px; border:1px solid var(--ledger-green-deep); background:var(--ledger-green-deep); color:var(--paper); border-radius:3px; cursor:pointer; }
+  .live-actions button:disabled{ opacity:0.6; cursor:default; }
+  .live-actions button.secondary{ background:var(--card); color:var(--ink); border-color:var(--paper-line); }
+  .live-status{ font-size:12px; color:var(--muted); }
+  .live-status.error{ color:var(--over); }
+  .live-status.ok{ color:var(--headroom); }
+  .spinner{ display:inline-block; width:12px; height:12px; border:2px solid var(--paper-line); border-top-color:var(--ledger-green-deep); border-radius:50%; animation:spin 0.7s linear infinite; vertical-align:-2px; margin-right:6px; }
+  @keyframes spin{ to{ transform:rotate(360deg); } }
+
+  .api-error-box{ border:1px solid #e0b3ad; background:#faeceb; color:#7a2c22; padding:16px 18px; font-family:"Helvetica Neue",Arial,sans-serif; font-size:13px; line-height:1.6; }
+  .api-error-box .title{ font-weight:700; margin-bottom:4px; }
+
+  @media (max-width:640px){ .budget-compare{ grid-template-columns:1fr; } }
+</style>
+</head>
+<body>
+
+<div class="page">
+
+  <div class="dev-toggle sans">
+    <button id="btnNormal" class="active">Normal — 5 categories, 2 overspending</button>
+    <button id="btnLimited">Limited window — 1 month requested</button>
+    <button id="btnEmpty">No transactions</button>
+  </div>
+
+  <div class="live-panel">
+    <div class="live-title">Live Backend (Part D — fetch real data instead of the fixtures above)</div>
+    <div class="live-grid">
+      <div>
+        <label for="liveBaseUrl">Base URL</label>
+        <input id="liveBaseUrl" type="text" value="http://localhost:5000" spellcheck="false">
+      </div>
+      <div>
+        <label for="liveUserId">User ID (GUID)</label>
+        <input id="liveUserId" type="text" value="66666666-6666-6666-6666-666666666666" spellcheck="false">
+      </div>
+      <div>
+        <label for="liveMonths">Months</label>
+        <input id="liveMonths" type="number" value="3" min="1" max="12">
+      </div>
+    </div>
+    <div class="live-actions">
+      <button id="btnFetchLive">Fetch Live Data</button>
+      <button id="btnBackToFixtures" class="secondary">Back to sample fixtures</button>
+      <span id="liveStatus" class="live-status"></span>
+    </div>
+  </div>
+
+  
+  <div class="masthead">
+    <h1>Budget Recommendations</h1>
+    <div class="period" id="periodLabel">—</div>
+  </div>
+
+  <div id="app"></div>
+
+</div>
+
+<script>
+function formatAmount(amount) { return amount == null ? "Not available" : "Rs " + Math.round(amount).toLocaleString(); }
+
+function toCategoryCard(c) {
+  return {
+    category: c.category,
+    historicalAverage: formatAmount(c.historicalAverage),
+    existingBudget: c.existingBudget != null ? formatAmount(c.existingBudget) : "No existing budget",
+    recommendedBudget: formatAmount(c.recommendedBudget),
+    utilization: c.budgetUtilizationPercent != null ? c.budgetUtilizationPercent : null,
+    isOverspending: c.isOverspending,
+    isLimitedData: c.dataSufficiency === "Limited",
+    aiSummary: c.explanation.summary,
+    aiOverspending: c.explanation.overspending,
+    aiSavings: c.explanation.savingsOpportunity,
+    aiAction: c.explanation.action,
+    aiLimitations: c.explanation.limitations,
+  };
+}
+
+function buildBudgetRecDisplay(apiResponse) {
+  const categories = (apiResponse.categories || []).map(toCategoryCard);
+  return {
+    period: { start: apiResponse.analysisPeriodStart, end: apiResponse.analysisPeriodEnd },
+    hasRecommendations: categories.length > 0,
+    categories,
+    overspendingCategories: apiResponse.overspendingCategories || [],
+    actionableSuggestions: apiResponse.actionableSuggestions || [],
+    hasOverspending: (apiResponse.overspendingCategories || []).length > 0,
+  };
+}
+
+// ---------------------------------------------------------------------
+// Part D — live fetch against the real running backend. Same logic as
+// fetchBudgetRecommendations()/handleApiError() in
+// budget_recommendations_client.js, inlined here so this file works
+// standalone with no import/build step.
+// ---------------------------------------------------------------------
+async function fetchBudgetRecommendationsLive(userId, { months, baseUrl, demoUserHeader }) {
+  const url = `${baseUrl}/api/ai/budget-recommendations/${encodeURIComponent(userId)}?months=${months}`;
+  let response;
+  try {
+    response = await fetch(url, { headers: { "X-Demo-User": demoUserHeader } });
+  } catch (err) {
+    const e = new Error(`Network/connection error: ${err.message}`);
+    e.statusCode = 0;
+    throw e;
+  }
+  if (response.ok) return response.json();
+  let detail;
+  try {
+    const body = await response.json();
+    detail = body.error || JSON.stringify(body);
+  } catch {
+    detail = await response.text();
+  }
+  const e = new Error(detail);
+  e.statusCode = response.status;
+  throw e;
+}
+
+function apiErrorState(error) {
+  if (error.statusCode === 400) return { title: "Check the request", message: error.message || "The request wasn't valid." };
+  if (error.statusCode === 401) return { title: "Can't load budget recommendations", message: "The User ID above doesn't match the backend's X-Demo-User check — make sure both fields use the same GUID." };
+  if (error.statusCode === 0) return { title: "Couldn't reach the backend", message: `${error.message} — is it running at the Base URL above, and does it have CORS enabled? See HOW_TO_RUN_day14.md Part B.` };
+  return { title: "Something went wrong", message: error.message || "Please try again in a moment." };
+}
+
+function renderApiError(errorState) {
+  document.getElementById("app").innerHTML = `
+    <div class="api-error-box">
+      <div class="title">${errorState.title}</div>
+      <div>${errorState.message}</div>
+    </div>`;
+}
+
+function setLiveStatus(text, kind) {
+  const el = document.getElementById("liveStatus");
+  el.textContent = text;
+  el.className = "live-status" + (kind ? " " + kind : "");
+}
+
+async function handleFetchLive() {
+  const baseUrl = document.getElementById("liveBaseUrl").value.trim().replace(/\/$/, "");
+  const userId = document.getElementById("liveUserId").value.trim();
+  const months = document.getElementById("liveMonths").value.trim() || "3";
+  const btn = document.getElementById("btnFetchLive");
+
+  ["btnNormal", "btnLimited", "btnEmpty"].forEach(b => document.getElementById(b).classList.remove("active"));
+  btn.disabled = true;
+  setLiveStatus("Fetching…");
+  document.getElementById("periodLabel").textContent = "Loading…";
+
+  try {
+    const apiResponse = await fetchBudgetRecommendationsLive(userId, { months, baseUrl, demoUserHeader: userId });
+    render(apiResponse);
+    setLiveStatus(`Loaded live from ${baseUrl}`, "ok");
+  } catch (err) {
+    const errorState = apiErrorState(err);
+    renderApiError(errorState);
+    document.getElementById("periodLabel").textContent = "—";
+    setLiveStatus(errorState.title, "error");
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+const RESPONSE_NORMAL = {"userId":"66666666-6666-6666-6666-666666666666","analysisPeriodStart":"2026-06-01","analysisPeriodEnd":"2026-08-31","categories":[{"category":"Food","historicalAverage":15000,"existingBudget":12000,"recommendedBudget":15000,"budgetVariance":-3000,"budgetUtilizationPercent":125.00,"recommendationReason":"Verified historical spending is above the existing budget.","dataSufficiency":"Sufficient","limitations":[],"isOverspending":true,"explanation":{"summary":"Your recommended Food budget is PKR 15,000 per month.","recommendedBudget":"The verified recommended budget for Food is PKR 15,000.","whyRecommendation":"Verified historical spending is above the existing budget.","overspending":"Food is above the existing budget based on the verified historical spending average.","savingsOpportunity":"There is no positive budget headroom in the verified comparison; spending is above the existing budget.","action":"Review this category and identify practical ways to keep spending closer to the planned budget.","limitations":"Budget recommendations are estimates based on verified historical data and may change as spending behavior changes."}},{"category":"Bills","historicalAverage":4500,"existingBudget":4500,"recommendedBudget":4500,"budgetVariance":0,"budgetUtilizationPercent":100,"recommendationReason":"Recommendation is based on the historical spending baseline.","dataSufficiency":"Sufficient","limitations":[],"isOverspending":false,"explanation":{"summary":"Your recommended Bills budget is PKR 4,500 per month.","recommendedBudget":"The verified recommended budget for Bills is PKR 4,500.","whyRecommendation":"Recommendation is based on the historical spending baseline.","overspending":"Bills is not above the existing budget based on the verified historical spending average.","savingsOpportunity":"The verified comparison shows no budget variance.","action":"Compare the recommendation with your actual spending as new transactions are recorded.","limitations":"Budget recommendations are estimates based on verified historical data and may change as spending behavior changes."}},{"category":"Transport","historicalAverage":4333.33,"existingBudget":6000,"recommendedBudget":4333.33,"budgetVariance":1666.67,"budgetUtilizationPercent":72.22,"recommendationReason":"Recommendation is based on the historical spending baseline.","dataSufficiency":"Sufficient","limitations":[],"isOverspending":false,"explanation":{"summary":"Your recommended Transport budget is PKR 4,333 per month.","recommendedBudget":"The verified recommended budget for Transport is PKR 4,333.","whyRecommendation":"Recommendation is based on the historical spending baseline.","overspending":"Transport is not above the existing budget based on the verified historical spending average.","savingsOpportunity":"The verified budget comparison shows PKR 1,667 of budget headroom.","action":"Compare the recommendation with your actual spending as new transactions are recorded.","limitations":"Budget recommendations are estimates based on verified historical data and may change as spending behavior changes."}},{"category":"Shopping","historicalAverage":3000,"existingBudget":null,"recommendedBudget":3000,"budgetVariance":null,"budgetUtilizationPercent":null,"recommendationReason":"No existing budget was found; recommendation uses the historical spending baseline.","dataSufficiency":"Sufficient","limitations":[],"isOverspending":false,"explanation":{"summary":"Your recommended Shopping budget is PKR 3,000 per month.","recommendedBudget":"The verified recommended budget for Shopping is PKR 3,000.","whyRecommendation":"No existing budget was found; recommendation uses the historical spending baseline.","overspending":"Overspending cannot be determined because the required verified comparison values are unavailable.","savingsOpportunity":"No verified savings/headroom amount is available.","action":"Compare the recommendation with your actual spending as new transactions are recorded.","limitations":"Budget recommendations are estimates based on verified historical data and may change as spending behavior changes."}},{"category":"Entertainment","historicalAverage":1000,"existingBudget":0,"recommendedBudget":1000,"budgetVariance":-1000,"budgetUtilizationPercent":null,"recommendationReason":"Recommendation is based on the historical spending baseline.","dataSufficiency":"Sufficient","limitations":[],"isOverspending":true,"explanation":{"summary":"Your recommended Entertainment budget is PKR 1,000 per month.","recommendedBudget":"The verified recommended budget for Entertainment is PKR 1,000.","whyRecommendation":"Recommendation is based on the historical spending baseline.","overspending":"Entertainment is above the existing budget based on the verified historical spending average.","savingsOpportunity":"There is no positive budget headroom in the verified comparison; spending is above the existing budget.","action":"Review this category and identify practical ways to keep spending closer to the planned budget.","limitations":"Budget recommendations are estimates based on verified historical data and may change as spending behavior changes."}}],"overspendingCategories":["Food","Entertainment"],"actionableSuggestions":["Review this category and identify practical ways to keep spending closer to the planned budget.","Compare the recommendation with your actual spending as new transactions are recorded."]};
+const RESPONSE_LIMITED = {"userId":"66666666-6666-6666-6666-666666666666","analysisPeriodStart":"2026-08-01","analysisPeriodEnd":"2026-08-31","categories":[{"category":"Food","historicalAverage":15500,"existingBudget":12000,"recommendedBudget":15500,"budgetVariance":-3500,"budgetUtilizationPercent":129.17,"recommendationReason":"Recommendation is based on limited historical spending data.","dataSufficiency":"Limited","limitations":["Less than the preferred historical period is available."],"isOverspending":true,"explanation":{"summary":"Your recommended Food budget is PKR 15,500 per month.","recommendedBudget":"The verified recommended budget for Food is PKR 15,500.","whyRecommendation":"Recommendation is based on limited historical spending data.","overspending":"Food is above the existing budget based on the verified historical spending average.","savingsOpportunity":"There is no positive budget headroom in the verified comparison; spending is above the existing budget.","action":"Treat this recommendation as an initial estimate and review it when more transaction history is available.","limitations":"Budget recommendations are estimates based on verified historical data and may change as spending behavior changes. Less than the preferred historical period is available. Data sufficiency: Limited."}},{"category":"Shopping","historicalAverage":6000,"existingBudget":null,"recommendedBudget":6000,"budgetVariance":null,"budgetUtilizationPercent":null,"recommendationReason":"Recommendation is based on limited historical spending data.","dataSufficiency":"Limited","limitations":["Less than the preferred historical period is available."],"isOverspending":false,"explanation":{"summary":"Your recommended Shopping budget is PKR 6,000 per month.","recommendedBudget":"The verified recommended budget for Shopping is PKR 6,000.","whyRecommendation":"Recommendation is based on limited historical spending data.","overspending":"Overspending cannot be determined because the required verified comparison values are unavailable.","savingsOpportunity":"No verified savings/headroom amount is available.","action":"Treat this recommendation as an initial estimate and review it when more transaction history is available.","limitations":"Budget recommendations are estimates based on verified historical data and may change as spending behavior changes. Less than the preferred historical period is available. Data sufficiency: Limited."}},{"category":"Transport","historicalAverage":4500,"existingBudget":6000,"recommendedBudget":4500,"budgetVariance":1500,"budgetUtilizationPercent":75.00,"recommendationReason":"Recommendation is based on limited historical spending data.","dataSufficiency":"Limited","limitations":["Less than the preferred historical period is available."],"isOverspending":false,"explanation":{"summary":"Your recommended Transport budget is PKR 4,500 per month.","recommendedBudget":"The verified recommended budget for Transport is PKR 4,500.","whyRecommendation":"Recommendation is based on limited historical spending data.","overspending":"Transport is not above the existing budget based on the verified historical spending average.","savingsOpportunity":"The verified budget comparison shows PKR 1,500 of budget headroom.","action":"Treat this recommendation as an initial estimate and review it when more transaction history is available.","limitations":"Budget recommendations are estimates based on verified historical data and may change as spending behavior changes. Less than the preferred historical period is available. Data sufficiency: Limited."}},{"category":"Bills","historicalAverage":4500,"existingBudget":4500,"recommendedBudget":4500,"budgetVariance":0,"budgetUtilizationPercent":100,"recommendationReason":"Recommendation is based on limited historical spending data.","dataSufficiency":"Limited","limitations":["Less than the preferred historical period is available."],"isOverspending":false,"explanation":{"summary":"Your recommended Bills budget is PKR 4,500 per month.","recommendedBudget":"The verified recommended budget for Bills is PKR 4,500.","whyRecommendation":"Recommendation is based on limited historical spending data.","overspending":"Bills is not above the existing budget based on the verified historical spending average.","savingsOpportunity":"The verified comparison shows no budget variance.","action":"Treat this recommendation as an initial estimate and review it when more transaction history is available.","limitations":"Budget recommendations are estimates based on verified historical data and may change as spending behavior changes. Less than the preferred historical period is available. Data sufficiency: Limited."}},{"category":"Entertainment","historicalAverage":800,"existingBudget":0,"recommendedBudget":800,"budgetVariance":-800,"budgetUtilizationPercent":null,"recommendationReason":"Recommendation is based on limited historical spending data.","dataSufficiency":"Limited","limitations":["Less than the preferred historical period is available."],"isOverspending":true,"explanation":{"summary":"Your recommended Entertainment budget is PKR 800 per month.","recommendedBudget":"The verified recommended budget for Entertainment is PKR 800.","whyRecommendation":"Recommendation is based on limited historical spending data.","overspending":"Entertainment is above the existing budget based on the verified historical spending average.","savingsOpportunity":"There is no positive budget headroom in the verified comparison; spending is above the existing budget.","action":"Treat this recommendation as an initial estimate and review it when more transaction history is available.","limitations":"Budget recommendations are estimates based on verified historical data and may change as spending behavior changes. Less than the preferred historical period is available. Data sufficiency: Limited."}}],"overspendingCategories":["Food","Entertainment"],"actionableSuggestions":["Treat this recommendation as an initial estimate and review it when more transaction history is available."]};
+const RESPONSE_EMPTY = {"userId":"77777777-7777-7777-7777-777777777777","analysisPeriodStart":"2026-06-01","analysisPeriodEnd":"2026-08-31","categories":[],"overspendingCategories":[],"actionableSuggestions":[]};
+
+function render(apiResponse) {
+  const data = buildBudgetRecDisplay(apiResponse);
+  document.getElementById("periodLabel").textContent = `${data.period.start} – ${data.period.end}`;
+  const app = document.getElementById("app");
+
+  if (!data.hasRecommendations) {
+    app.innerHTML = `
+      <div class="empty-state">
+        <h2>No budget recommendations yet</h2>
+        <p class="sans">No transactions were found for this period, so there isn't enough verified spending data to recommend category budgets.</p>
+      </div>`;
+    return;
+  }
+
+  const chips = `
+    <div class="summary-row">
+      <div class="summary-chip total">${data.categories.length} categor${data.categories.length !== 1 ? "ies" : "y"} analyzed</div>
+      ${data.hasOverspending ? `<div class="summary-chip over">${data.overspendingCategories.length} over budget: ${data.overspendingCategories.join(", ")}</div>` : ""}
+    </div>`;
+
+  const suggestions = data.actionableSuggestions.length ? `
+    <section>
+      <div class="section-title">Actionable Suggestions</div>
+      <div class="suggestion-list">${data.actionableSuggestions.map(s => `• ${s}`).join("<br>")}</div>
+    </section>` : "";
+
+  const cards = data.categories.map(c => `
+    <div class="cat-card ${c.isOverspending ? "over" : "ok"}">
+      <div class="cat-top">
+        <div class="cat-name">${c.category}</div>
+        <div class="cat-flags">
+          ${c.isOverspending ? `<div class="cat-flag over">Over Budget</div>` : ""}
+          ${c.isLimitedData ? `<div class="cat-flag limited">Limited Data</div>` : ""}
+        </div>
+      </div>
+      <div class="budget-compare">
+        <div class="col"><div class="label">Historical Average</div><div class="value">${c.historicalAverage}</div></div>
+        <div class="col"><div class="label">Current Budget</div><div class="value">${c.existingBudget}</div></div>
+        <div class="col recommended"><div class="label">Recommended</div><div class="value">${c.recommendedBudget}</div></div>
+      </div>
+      ${c.utilization != null ? `
+      <div class="util-bar-track"><div class="util-bar-fill ${c.utilization > 100 ? "over" : ""}" style="width:${Math.min(c.utilization, 100)}%"></div></div>
+      <div class="cat-detail-row">Budget utilization: ${c.utilization}%</div>` : ""}
+      <div class="cat-explanation">${c.aiSummary} ${c.aiOverspending}</div>
+      <div class="cat-detail-row">${c.aiSavings}</div>
+      <div class="cat-action">${c.aiAction}</div>
+    </div>`).join("");
+
+  app.innerHTML = chips + suggestions + `<section><div class="section-title">Category-wise Recommendations</div>${cards}</section>`;
+}
+
+document.getElementById("btnNormal").onclick = () => { render(RESPONSE_NORMAL); setActive("btnNormal"); setLiveStatus(""); };
+document.getElementById("btnLimited").onclick = () => { render(RESPONSE_LIMITED); setActive("btnLimited"); setLiveStatus(""); };
+document.getElementById("btnEmpty").onclick = () => { render(RESPONSE_EMPTY); setActive("btnEmpty"); setLiveStatus(""); };
+document.getElementById("btnFetchLive").onclick = handleFetchLive;
+document.getElementById("btnBackToFixtures").onclick = () => { render(RESPONSE_NORMAL); setActive("btnNormal"); setLiveStatus(""); };
+function setActive(id) {
+  ["btnNormal","btnLimited","btnEmpty"].forEach(b => document.getElementById(b).classList.toggle("active", b === id));
+}
+
+render(RESPONSE_NORMAL);
+</script>
+
+</body>
+</html>
